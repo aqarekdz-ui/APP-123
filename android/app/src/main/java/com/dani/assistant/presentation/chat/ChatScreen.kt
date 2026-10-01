@@ -10,7 +10,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,8 +21,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dani.assistant.core.ai.GeminiAI
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -44,48 +41,38 @@ fun ChatScreen() {
     var currentMood by remember { mutableStateOf("Neutral") }
     val ai = remember { GeminiAI() }
     val scope = rememberCoroutineScope()
-    val listState = rememberLazyListState()
 
-    val prefs: SharedPreferences = context.getSharedPreferences("chat_history", Context.MODE_PRIVATE)
+    val prefs: SharedPreferences = context.getSharedPreferences("chat", Context.MODE_PRIVATE)
 
     LaunchedEffect(Unit) {
-        val saved = prefs.getString("messages", null)
-        if (saved != null) {
-            try {
-                val array = JSONArray(saved)
-                val loaded = mutableListOf<Message>()
-                for (i in 0 until array.length()) {
-                    val obj = array.getJSONObject(i)
-                    loaded.add(Message(
-                        text = obj.getString("text"),
-                        isUser = obj.getBoolean("isUser"),
-                        timestamp = obj.getLong("timestamp"),
-                        mood = obj.optString("mood", "")
+        val saved = prefs.getString("msg", "")
+        if (saved.isNotEmpty()) {
+            val list = mutableListOf<Message>()
+            saved.split("|||").forEach { part ->
+                val parts = part.split(":::")
+                if (parts.size >= 2) {
+                    list.add(Message(
+                        text = parts[0],
+                        isUser = parts[1] == "true",
+                        timestamp = parts.getOrNull(2)?.toLongOrNull() ?: System.currentTimeMillis(),
+                        mood = parts.getOrNull(3) ?: ""
                     ))
                 }
-                messages = loaded
-            } catch (e: Exception) {}
+            }
+            if (list.isNotEmpty()) messages = list
         }
     }
 
     LaunchedEffect(messages) {
-        val array = JSONArray()
-        messages.forEach { msg ->
-            val obj = JSONObject()
-            obj.put("text", msg.text)
-            obj.put("isUser", msg.isUser)
-            obj.put("timestamp", msg.timestamp)
-            obj.put("mood", msg.mood)
-            array.put(obj)
+        if (messages.isNotEmpty()) {
+            val saved = messages.joinToString("|||") { "${it.text}:::${it.isUser}:::${it.timestamp}:::${it.mood}" }
+            prefs.edit().putString("msg", saved).apply()
         }
-        prefs.edit().putString("messages", array.toString()).apply()
     }
 
-    val tts = remember {
-        TextToSpeech(context) { status ->
-            if (status == TextToSpeech.SUCCESS) tts.language = Locale("ar")
-        }
-    }
+    val tts = remember { TextToSpeech(context) { status ->
+        if (status == TextToSpeech.SUCCESS) tts.language = Locale("ar")
+    }}
     DisposableEffect(Unit) { onDispose { tts.stop(); tts.shutdown() } }
 
     val speechLauncher = rememberLauncherForActivityResult(
@@ -103,19 +90,19 @@ fun ChatScreen() {
         var task: String? = null
 
         when {
-            lower.contains("happy") || lower.contains("good") || lower.contains("great") -> mood = "Happy"
-            lower.contains("sad") || lower.contains("tired") -> mood = "Sad"
-            lower.contains("angry") || lower.contains("mad") -> mood = "Angry"
+            lower.contains("happy") || lower.contains("good") || lower.contains("great") || lower.contains("farhan") -> mood = "Happy"
+            lower.contains("sad") || lower.contains("tired") || lower.contains("hazin") -> mood = "Sad"
+            lower.contains("angry") || lower.contains("mad") || lower.contains("ghadban") -> mood = "Angry"
             lower.contains("worried") || lower.contains("scared") -> mood = "Worried"
-            lower.contains("love") -> mood = "Loved"
+            lower.contains("love") || lower.contains("hub") -> mood = "Loved"
         }
 
         when {
-            lower.contains("remind") || lower.contains("reminder") -> task = "Reminder: $text"
-            lower.contains("task") || lower.contains("todo") -> task = "Task: $text"
-            lower.contains("meeting") || lower.contains("appointment") -> task = "Meeting: $text"
-            lower.contains("buy") || lower.contains("shop") -> task = "Shopping: $text"
-            lower.contains("call") -> task = "Call: $text"
+            lower.contains("remind") || lower.contains("tadhkir") -> task = "Reminder: $text"
+            lower.contains("task") || lower.contains("muhimma") -> task = "Task: $text"
+            lower.contains("meeting") || lower.contains("maw'id") -> task = "Meeting: $text"
+            lower.contains("buy") || lower.contains("shop") || lower.contains("shri") -> task = "Shopping: $text"
+            lower.contains("call") || lower.contains("wasil") -> task = "Call: $text"
         }
 
         return Pair(mood, task)
@@ -138,7 +125,6 @@ fun ChatScreen() {
 
         LazyColumn(
             modifier = Modifier.weight(1f),
-            state = listState,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (messages.isEmpty()) {
@@ -174,7 +160,7 @@ fun ChatScreen() {
                                 onClick = { tts.speak(msg.text, TextToSpeech.QUEUE_FLUSH, null, null) },
                                 modifier = Modifier.padding(end = 8.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                            ) { Text("speak", fontSize = 16.sp) }
+                            ) { Text("speak", fontSize = 14.sp) }
                         }
                         Surface(
                             color = if (msg.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
@@ -237,7 +223,7 @@ fun ChatScreen() {
                     speechLauncher.launch(intent)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-            ) { Text("mic", fontSize = 20.sp) }
+            ) { Text("mic", fontSize = 18.sp) }
 
             TextField(
                 value = userInput,
