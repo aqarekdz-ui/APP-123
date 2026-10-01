@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.dani.assistant.DaniApplication
 import com.dani.assistant.presentation.placeholder.PlaceholderScreen
+import com.dani.assistant.presentation.chat.ChatScreen
 import com.dani.assistant.presentation.tasks.TasksScreen
 import com.dani.assistant.presentation.tasks.TasksViewModel
 
@@ -41,7 +42,7 @@ fun DaniNavHost(
             PlaceholderScreen(title = Screen.Memory.title)
         }
         composable(Screen.Dani.route) {
-            PlaceholderScreen(title = Screen.Dani.title)
+            ChatScreen()
         }
     }
 }
