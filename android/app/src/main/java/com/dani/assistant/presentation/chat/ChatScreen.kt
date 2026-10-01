@@ -69,7 +69,7 @@ fun ChatScreen() {
 
     LaunchedEffect(Unit) {
         val saved = prefs.getString("msg", "")
-        if (saved.isNotEmpty()) {
+        if (saved != null && saved.isNotEmpty()) {
             val list = mutableListOf<Message>()
             saved.split("|||").forEach { part ->
                 val parts = part.split(":::")
@@ -90,7 +90,6 @@ fun ChatScreen() {
         }
     }
 
-    // ✅ التصحيح هنا: تهيئة آمنة تماماً لـ TextToSpeech
     val tts = remember { TextToSpeech(context, null) }
     LaunchedEffect(Unit) {
         tts.language = Locale("ar")
