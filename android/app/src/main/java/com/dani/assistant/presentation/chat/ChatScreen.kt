@@ -34,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,12 +48,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-data class Message(
-    val text: String,
-    val isUser: Boolean,
-    val timestamp: Long = System.currentTimeMillis(),
-    val mood: String = ""
-)
+data class Message(val text: String, val isUser: Boolean, val timestamp: Long = System.currentTimeMillis(), val mood: String = "")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,7 +60,6 @@ fun ChatScreen() {
     var currentMood by remember { mutableStateOf("Neutral") }
     val ai = remember { GeminiAI() }
     val scope = rememberCoroutineScope()
-
     val prefs: SharedPreferences = context.getSharedPreferences("chat", Context.MODE_PRIVATE)
 
     LaunchedEffect(Unit) {
@@ -91,19 +86,10 @@ fun ChatScreen() {
     }
 
     val tts = remember { TextToSpeech(context, null) }
-    LaunchedEffect(Unit) {
-        tts.language = Locale("ar")
-    }
-    DisposableEffect(Unit) {
-        onDispose {
-            tts.stop()
-            tts.shutdown()
-        }
-    }
+    LaunchedEffect(Unit) { tts.language = Locale("ar") }
+    DisposableEffect(Unit) { onDispose { tts.stop(); tts.shutdown() } }
 
-    val speechLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
+    val speechLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.get(0)
             if (!text.isNullOrBlank()) userInput = text
@@ -114,59 +100,30 @@ fun ChatScreen() {
         val lower = text.lowercase()
         var mood = "Neutral"
         var task: String? = null
-
-        if (lower.contains("happy") || lower.contains("good") || lower.contains("great") || lower.contains("farhan") || lower.contains("mabsoot")) {
-            mood = "Happy"
-        } else if (lower.contains("sad") || lower.contains("tired") || lower.contains("hazin") || lower.contains("taaban")) {
-            mood = "Sad"
-        } else if (lower.contains("angry") || lower.contains("mad") || lower.contains("ghadban") || lower.contains("3asab")) {
-            mood = "Angry"
-        } else if (lower.contains("worried") || lower.contains("scared") || lower.contains("khayef")) {
-            mood = "Worried"
-        } else if (lower.contains("love") || lower.contains("hub") || lower.contains("nhebbek")) {
-            mood = "Loved"
-        }
-
-        if (lower.contains("remind") || lower.contains("tadhkir") || lower.contains("dhakker")) {
-            task = "Reminder: " + text
-        } else if (lower.contains("task") || lower.contains("muhimma") || lower.contains("mohim")) {
-            task = "Task: " + text
-        } else if (lower.contains("meeting") || lower.contains("maw3id") || lower.contains("rendez")) {
-            task = "Meeting: " + text
-        } else if (lower.contains("buy") || lower.contains("shop") || lower.contains("shri") || lower.contains("nshri")) {
-            task = "Shopping: " + text
-        } else if (lower.contains("call") || lower.contains("wasil") || lower.contains("nwasel")) {
-            task = "Call: " + text
-        }
-
+        if (lower.contains("happy") || lower.contains("good") || lower.contains("great") || lower.contains("farhan") || lower.contains("mabsoot")) mood = "Happy"
+        else if (lower.contains("sad") || lower.contains("tired") || lower.contains("hazin") || lower.contains("taaban")) mood = "Sad"
+        else if (lower.contains("angry") || lower.contains("mad") || lower.contains("ghadban") || lower.contains("3asab")) mood = "Angry"
+        else if (lower.contains("worried") || lower.contains("scared") || lower.contains("khayef")) mood = "Worried"
+        else if (lower.contains("love") || lower.contains("hub") || lower.contains("nhebbek")) mood = "Loved"
+        if (lower.contains("remind") || lower.contains("tadhkir") || lower.contains("dhakker")) task = "Reminder: " + text
+        else if (lower.contains("task") || lower.contains("muhimma") || lower.contains("mohim")) task = "Task: " + text
+        else if (lower.contains("meeting") || lower.contains("maw3id") || lower.contains("rendez")) task = "Meeting: " + text
+        else if (lower.contains("buy") || lower.contains("shop") || lower.contains("shri") || lower.contains("nshri")) task = "Shopping: " + text
+        else if (lower.contains("call") || lower.contains("wasil") || lower.contains("nwasel")) task = "Call: " + text
         return Pair(mood, task)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+            Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Mood:", style = MaterialTheme.typography.bodyMedium)
                 Text(currentMood, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (messages.isEmpty()) {
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                    ) {
+                    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text("Hello! I am DANI", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(8.dp))
@@ -178,123 +135,38 @@ fun ChatScreen() {
                     }
                 }
             }
-
             items(messages) { msg ->
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = if (msg.isUser) Alignment.End else Alignment.Start
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = if (msg.isUser) Arrangement.End else Arrangement.Start,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = if (msg.isUser) Alignment.End else Alignment.Start) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (msg.isUser) Arrangement.End else Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
                         if (!msg.isUser) {
-                            Button(
-                                onClick = { tts.speak(msg.text, TextToSpeech.QUEUE_FLUSH, null, null) },
-                                modifier = Modifier.padding(end = 8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                            ) { Text("speak", fontSize = 14.sp) }
+                            Button(onClick = { tts.speak(msg.text, TextToSpeech.QUEUE_FLUSH, null, null) }, modifier = Modifier.padding(end = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("speak", fontSize = 14.sp) }
                         }
-                        Surface(
-                            color = if (msg.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
+                        Surface(color = if (msg.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp)) {
                             Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = msg.text,
-                                    color = if (msg.isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                if (msg.mood.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(msg.mood, fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
-                                }
+                                Text(text = msg.text, color = if (msg.isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (msg.mood.isNotEmpty()) { Spacer(modifier = Modifier.height(4.dp)); Text(msg.mood, fontSize = 10.sp, color = MaterialTheme.colorScheme.outline) }
                             }
                         }
                     }
-                    Text(
-                        text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(msg.timestamp)),
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                    )
+                    Text(text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(msg.timestamp)), fontSize = 10.sp, color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
                 }
             }
-
             if (suggestedTask != null) {
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Task suggestion:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                Text(suggestedTask!!, fontSize = 14.sp)
-                            }
+                    Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) { Text("Task suggestion:", fontWeight = FontWeight.Bold, fontSize = 12.sp); Text(suggestedTask!!, fontSize = 14.sp) }
                             Button(onClick = { suggestedTask = null }) { Text("OK") }
                         }
                     }
                 }
             }
         }
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Button(
-                onClick = {
-                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-DZ")
-                    }
-                    speechLauncher.launch(intent)
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-            ) { Text("mic", fontSize = 18.sp) }
-
-            TextField(
-                value = userInput,
-                onValueChange = { userInput = it },
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Type or speak...") },
-                shape = RoundedCornerShape(24.dp)
-            )
-
-            Button(
-                onClick = {
-                    if (userInput.isNotBlank()) {
-                        val inputText = userInput
-                        val result = analyzeMessage(inputText)
-                        currentMood = result.first
-                        suggestedTask = result.second
-                        val msg = Message(inputText, true, mood = result.first)
-                        messages = messages + msg
-                        userInput = ""
-                        scope.launch {
-                            val response = ai.sendMessage(inputText)
-                            messages = messages + Message(response, false)
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(24.dp)
-            ) { Text("Send") }
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-DZ") }; speechLauncher.launch(intent) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("mic", fontSize = 18.sp) }
+            TextField(value = userInput, onValueChange = { userInput = it }, modifier = Modifier.weight(1f), placeholder = { Text("Type or speak...") }, shape = RoundedCornerShape(24.dp))
+            Button(onClick = { if (userInput.isNotBlank()) { val inputText = userInput; val result = analyzeMessage(inputText); currentMood = result.first; suggestedTask = result.second; val msg = Message(inputText, true, mood = result.first); messages = messages + msg; userInput = ""; scope.launch { val response = ai.sendMessage(inputText); messages = messages + Message(response, false) } } }, shape = RoundedCornerShape(24.dp)) { Text("Send") }
         }
-
-        TextButton(
-            onClick = {
-                messages = emptyList()
-                prefs.edit().clear().apply()
-            },
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        ) {
-            Text("Clear chat", fontSize = 12.sp)
-        }
+        TextButton(onClick = { messages = emptyList(); prefs.edit().clear().apply() }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Clear chat", fontSize = 12.sp) }
     }
 }
