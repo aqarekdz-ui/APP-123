@@ -33,7 +33,6 @@ fun ChatScreen() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Text-to-Speech
     val tts = remember {
         TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
@@ -48,7 +47,6 @@ fun ChatScreen() {
         }
     }
 
-    // Speech-to-Text
     val speechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -64,7 +62,6 @@ fun ChatScreen() {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // قائمة الرسائل
         LazyColumn(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -78,7 +75,7 @@ fun ChatScreen() {
                         )
                     ) {
                         Text(
-                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على 🎤 وتتحدث بالدارجة.",
+                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على الميكروفون وتتحدث بالدارجة.",
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.bodyLarge
                         )
@@ -119,13 +116,11 @@ fun ChatScreen() {
             }
         }
 
-        // حقل الإدخال والأزرار
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // زر الميكروفون
             IconButton(
                 onClick = {
                     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -139,7 +134,6 @@ fun ChatScreen() {
                 Icon(Icons.Default.Mic, contentDescription = "صوت")
             }
 
-            // حقل النص
             TextField(
                 value = userInput,
                 onValueChange = { userInput = it },
@@ -148,7 +142,6 @@ fun ChatScreen() {
                 shape = RoundedCornerShape(24.dp)
             )
 
-            // زر الإرسال
             Button(
                 onClick = {
                     if (userInput.isNotBlank()) {
