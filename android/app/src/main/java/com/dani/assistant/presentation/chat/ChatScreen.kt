@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +34,7 @@ fun ChatScreen() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    // Text-to-Speech للقراءة الصوتية
     val tts = remember {
         TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
@@ -44,6 +49,7 @@ fun ChatScreen() {
         }
     }
 
+    // Speech-to-Text للإملاء الصوتي
     val speechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -59,6 +65,7 @@ fun ChatScreen() {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
+        // قائمة الرسائل
         LazyColumn(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -72,7 +79,7 @@ fun ChatScreen() {
                         )
                     ) {
                         Text(
-                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على زر الميكروفون وتتحدث بالدارجة.",
+                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على  وتتحدث بالدارجة.",
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.bodyLarge
                         )
@@ -86,14 +93,18 @@ fun ChatScreen() {
                     horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // زر السماعة للردود
                     if (!message.isUser) {
-                        Button(
+                        IconButton(
                             onClick = {
                                 tts.speak(message.text, TextToSpeech.QUEUE_FLUSH, null, null)
-                            },
-                            modifier = Modifier.padding(end = 8.dp)
+                            }
                         ) {
-                            Text("")
+                            Icon(
+                                Icons.Default.VolumeUp,
+                                contentDescription = "قراءة",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                     Surface(
@@ -110,12 +121,14 @@ fun ChatScreen() {
             }
         }
 
+        // حقل الإدخال والأزرار
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(
+            // زر الميكروفون
+            IconButton(
                 onClick = {
                     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -125,9 +138,10 @@ fun ChatScreen() {
                     speechLauncher.launch(intent)
                 }
             ) {
-                Text("🎤")
+                Icon(Icons.Default.Mic, contentDescription = "صوت")
             }
 
+            // حقل النص
             TextField(
                 value = userInput,
                 onValueChange = { userInput = it },
@@ -136,6 +150,7 @@ fun ChatScreen() {
                 shape = RoundedCornerShape(24.dp)
             )
 
+            // زر الإرسال
             Button(
                 onClick = {
                     if (userInput.isNotBlank()) {
@@ -150,7 +165,7 @@ fun ChatScreen() {
                 },
                 shape = RoundedCornerShape(24.dp)
             ) {
-                Text("إرسال")
+                Icon(Icons.Default.Send, contentDescription = "إرسال")
             }
         }
     }
