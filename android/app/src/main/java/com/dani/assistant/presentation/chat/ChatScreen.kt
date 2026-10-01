@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dani.assistant.core.ai.GeminiAI
@@ -34,7 +33,7 @@ fun ChatScreen() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Text-to-Speech
+    // 1. ميزة القراءة الصوتية (Text-to-Speech)
     val tts = remember {
         TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
@@ -43,13 +42,10 @@ fun ChatScreen() {
         }
     }
     DisposableEffect(Unit) {
-        onDispose {
-            tts.stop()
-            tts.shutdown()
-        }
+        onDispose { tts.stop(); tts.shutdown() }
     }
 
-    // Speech-to-Text
+    // 2. ميزة الإملاء الصوتي (Speech-to-Text)
     val speechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -73,9 +69,7 @@ fun ChatScreen() {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        )
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                     ) {
                         Text(
                             text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على زر الميكروفون وتتحدث بالدارجة.",
@@ -92,17 +86,14 @@ fun ChatScreen() {
                     horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // زر السماعة للردود
                     if (!message.isUser) {
                         Button(
-                            onClick = {
-                                tts.speak(message.text, TextToSpeech.QUEUE_FLUSH, null, null)
-                            },
+                            onClick = { tts.speak(message.text, TextToSpeech.QUEUE_FLUSH, null, null) },
                             modifier = Modifier.padding(end = 8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer
-                            )
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                         ) {
-                            Text("", fontSize = 18.sp)
+                            Text("🔊", fontSize = 18.sp) // إيموجي مضمون بدلاً من أيقونة معقدة
                         }
                     }
                     Surface(
@@ -119,11 +110,13 @@ fun ChatScreen() {
             }
         }
 
+        // حقل الإدخال والأزرار
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // زر الميكروفون
             Button(
                 onClick = {
                     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -133,11 +126,9 @@ fun ChatScreen() {
                     }
                     speechLauncher.launch(intent)
                 },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
             ) {
-                Text("🎤", fontSize = 20.sp)
+                Text("🎤", fontSize = 20.sp) // إيموجي مضمون بدلاً من أيقونة معقدة
             }
 
             TextField(
@@ -148,6 +139,7 @@ fun ChatScreen() {
                 shape = RoundedCornerShape(24.dp)
             )
 
+            // زر الإرسال
             Button(
                 onClick = {
                     if (userInput.isNotBlank()) {
@@ -162,7 +154,7 @@ fun ChatScreen() {
                 },
                 shape = RoundedCornerShape(24.dp)
             ) {
-                Icon(Icons.Default.Send, contentDescription = "إرسال")
+                Icon(Icons.Default.Send, contentDescription = "إرسال") // هذه الأيقونة أساسية ومضمونة
             }
         }
     }
