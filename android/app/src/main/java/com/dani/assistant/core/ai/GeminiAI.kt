@@ -8,21 +8,6 @@ class GeminiAI {
         modelName = "gemini-2.0-flash-exp",
         apiKey = "AQ.Ab8RN6LuSvRXB1xvu-" + "dQbYF4jC0RgNI6Ux79sIEijjPnE6Y97A"
     )
-
-    private val chat = model.startChat(
-        history = listOf(
-            content {
-                text("أنت DANI، مساعد شخصي ذكي جزائري. تتكلم بالدارجة الجزائرية وتفهمها. ساعد المستخدم في مهامه اليومية بإيجاز وود.")
-            }
-        )
-    )
-
-    suspend fun sendMessage(message: String): String {
-        return try {
-            val response = chat.sendMessage(message)
-            response.text?.trim() ?: "عافاك عاود قول"
-        } catch (e: Exception) {
-            "عافاك تحقق من الإنترنت وحاول مرة أخرى"
-        }
-    }
+    private val chat = model.startChat(history = listOf(content { text("أنت DANI مساعد جزائري. أجب بالدارجة بإيجاز.") }))
+    suspend fun sendMessage(msg: String) = try { chat.sendMessage(msg).text?.trim() ?: "..." } catch(e: Exception) { "خطأ" }
 }
