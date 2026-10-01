@@ -2,18 +2,11 @@ package com.dani.assistant.core.designsystem
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.dani.assistant.R
 
-// Cairo Font Family for Arabic and Latin text
-// In res/font/, place cairo_regular.ttf and cairo_bold.ttf
-val CairoFontFamily = FontFamily(
-    Font(resId = R.font.cairo_regular, weight = FontWeight.Normal),
-    Font(resId = R.font.cairo_bold, weight = FontWeight.Bold)
-)
+val CairoFontFamily = FontFamily.Default
 
 val DaniTypography = Typography(
     headlineLarge = TextStyle(
