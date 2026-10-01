@@ -10,15 +10,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dani.assistant.core.ai.GeminiAI
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -34,7 +34,7 @@ fun ChatScreen() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Text-to-Speech للقراءة الصوتية
+    // Text-to-Speech
     val tts = remember {
         TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
@@ -49,7 +49,7 @@ fun ChatScreen() {
         }
     }
 
-    // Speech-to-Text للإملاء الصوتي
+    // Speech-to-Text
     val speechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -65,7 +65,6 @@ fun ChatScreen() {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // قائمة الرسائل
         LazyColumn(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -79,7 +78,7 @@ fun ChatScreen() {
                         )
                     ) {
                         Text(
-                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على  وتتحدث بالدارجة.",
+                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على زر الميكروفون وتتحدث بالدارجة.",
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.bodyLarge
                         )
@@ -93,18 +92,17 @@ fun ChatScreen() {
                     horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // زر السماعة للردود
                     if (!message.isUser) {
-                        IconButton(
+                        Button(
                             onClick = {
                                 tts.speak(message.text, TextToSpeech.QUEUE_FLUSH, null, null)
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.VolumeUp,
-                                contentDescription = "قراءة",
-                                tint = MaterialTheme.colorScheme.primary
+                            },
+                            modifier = Modifier.padding(end = 8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
                             )
+                        ) {
+                            Text("", fontSize = 18.sp)
                         }
                     }
                     Surface(
@@ -121,14 +119,12 @@ fun ChatScreen() {
             }
         }
 
-        // حقل الإدخال والأزرار
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // زر الميكروفون
-            IconButton(
+            Button(
                 onClick = {
                     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -136,12 +132,14 @@ fun ChatScreen() {
                         putExtra(RecognizerIntent.EXTRA_PROMPT, "تحدث الآن...")
                     }
                     speechLauncher.launch(intent)
-                }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
             ) {
-                Icon(Icons.Default.Mic, contentDescription = "صوت")
+                Text("🎤", fontSize = 20.sp)
             }
 
-            // حقل النص
             TextField(
                 value = userInput,
                 onValueChange = { userInput = it },
@@ -150,7 +148,6 @@ fun ChatScreen() {
                 shape = RoundedCornerShape(24.dp)
             )
 
-            // زر الإرسال
             Button(
                 onClick = {
                     if (userInput.isNotBlank()) {
