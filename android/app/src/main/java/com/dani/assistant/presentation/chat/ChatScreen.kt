@@ -25,7 +25,6 @@ import java.util.Locale
 
 data class Message(val text: String, val isUser: Boolean)
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen() {
     var messages by remember { mutableStateOf(listOf<Message>()) }
@@ -33,7 +32,8 @@ fun ChatScreen() {
     val ai = remember { GeminiAI() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    
+
+    // Text-to-Speech
     val tts = remember {
         TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
@@ -42,9 +42,13 @@ fun ChatScreen() {
         }
     }
     DisposableEffect(Unit) {
-        onDispose { tts.stop(); tts.shutdown() }
+        onDispose {
+            tts.stop()
+            tts.shutdown()
+        }
     }
 
+    // Speech-to-Text
     val speechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -60,6 +64,7 @@ fun ChatScreen() {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
+        // قائمة الرسائل
         LazyColumn(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -68,28 +73,36 @@ fun ChatScreen() {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
                     ) {
                         Text(
-                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على الميكروفون وتتحدث بالدارجة.",
+                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على 🎤 وتتحدث بالدارجة.",
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.bodyLarge
                         )
                     }
                 }
             }
-            
+
             items(messages) { message ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start,
-                    verticalAlignment = Alignment.Bottom
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (!message.isUser) {
                         IconButton(
-                            onClick = { tts.speak(message.text, TextToSpeech.QUEUE_FLUSH, null, null) }
+                            onClick = {
+                                tts.speak(message.text, TextToSpeech.QUEUE_FLUSH, null, null)
+                            }
                         ) {
-                            Icon(Icons.Default.VolumeUp, contentDescription = "قراءة")
+                            Icon(
+                                Icons.Default.VolumeUp,
+                                contentDescription = "قراءة",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                     Surface(
@@ -105,12 +118,14 @@ fun ChatScreen() {
                 }
             }
         }
-        
+
+        // حقل الإدخال والأزرار
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.Bottom
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            // زر الميكروفون
             IconButton(
                 onClick = {
                     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -123,7 +138,8 @@ fun ChatScreen() {
             ) {
                 Icon(Icons.Default.Mic, contentDescription = "صوت")
             }
-            
+
+            // حقل النص
             TextField(
                 value = userInput,
                 onValueChange = { userInput = it },
@@ -131,7 +147,8 @@ fun ChatScreen() {
                 placeholder = { Text("اكتب أو تحدث...") },
                 shape = RoundedCornerShape(24.dp)
             )
-            
+
+            // زر الإرسال
             Button(
                 onClick = {
                     if (userInput.isNotBlank()) {
