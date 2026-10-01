@@ -7,12 +7,34 @@ import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -22,7 +44,8 @@ import androidx.compose.ui.unit.sp
 import com.dani.assistant.core.ai.GeminiAI
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 data class Message(
     val text: String,
@@ -51,12 +74,9 @@ fun ChatScreen() {
             saved.split("|||").forEach { part ->
                 val parts = part.split(":::")
                 if (parts.size >= 2) {
-                    list.add(Message(
-                        text = parts[0],
-                        isUser = parts[1] == "true",
-                        timestamp = parts.getOrNull(2)?.toLongOrNull() ?: System.currentTimeMillis(),
-                        mood = parts.getOrNull(3) ?: ""
-                    ))
+                    val ts = if (parts.size >= 3) parts[2].toLongOrNull() ?: System.currentTimeMillis() else System.currentTimeMillis()
+                    val md = if (parts.size >= 4) parts[3] else ""
+                    list.add(Message(parts[0], parts[1] == "true", ts, md))
                 }
             }
             if (list.isNotEmpty()) messages = list
@@ -65,15 +85,22 @@ fun ChatScreen() {
 
     LaunchedEffect(messages) {
         if (messages.isNotEmpty()) {
-            val saved = messages.joinToString("|||") { "${it.text}:::${it.isUser}:::${it.timestamp}:::${it.mood}" }
+            val saved = messages.joinToString("|||") { it.text + ":::" + it.isUser + ":::" + it.timestamp + ":::" + it.mood }
             prefs.edit().putString("msg", saved).apply()
         }
     }
 
-    val tts = remember { TextToSpeech(context) { status ->
-        if (status == TextToSpeech.SUCCESS) tts.language = Locale("ar")
-    }}
-    DisposableEffect(Unit) { onDispose { tts.stop(); tts.shutdown() } }
+    // ✅ التصحيح هنا: تهيئة آمنة تماماً لـ TextToSpeech
+    val tts = remember { TextToSpeech(context, null) }
+    LaunchedEffect(Unit) {
+        tts.language = Locale("ar")
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            tts.stop()
+            tts.shutdown()
+        }
+    }
 
     val speechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -89,20 +116,28 @@ fun ChatScreen() {
         var mood = "Neutral"
         var task: String? = null
 
-        when {
-            lower.contains("happy") || lower.contains("good") || lower.contains("great") || lower.contains("farhan") -> mood = "Happy"
-            lower.contains("sad") || lower.contains("tired") || lower.contains("hazin") -> mood = "Sad"
-            lower.contains("angry") || lower.contains("mad") || lower.contains("ghadban") -> mood = "Angry"
-            lower.contains("worried") || lower.contains("scared") -> mood = "Worried"
-            lower.contains("love") || lower.contains("hub") -> mood = "Loved"
+        if (lower.contains("happy") || lower.contains("good") || lower.contains("great") || lower.contains("farhan") || lower.contains("mabsoot")) {
+            mood = "Happy"
+        } else if (lower.contains("sad") || lower.contains("tired") || lower.contains("hazin") || lower.contains("taaban")) {
+            mood = "Sad"
+        } else if (lower.contains("angry") || lower.contains("mad") || lower.contains("ghadban") || lower.contains("3asab")) {
+            mood = "Angry"
+        } else if (lower.contains("worried") || lower.contains("scared") || lower.contains("khayef")) {
+            mood = "Worried"
+        } else if (lower.contains("love") || lower.contains("hub") || lower.contains("nhebbek")) {
+            mood = "Loved"
         }
 
-        when {
-            lower.contains("remind") || lower.contains("tadhkir") -> task = "Reminder: $text"
-            lower.contains("task") || lower.contains("muhimma") -> task = "Task: $text"
-            lower.contains("meeting") || lower.contains("maw'id") -> task = "Meeting: $text"
-            lower.contains("buy") || lower.contains("shop") || lower.contains("shri") -> task = "Shopping: $text"
-            lower.contains("call") || lower.contains("wasil") -> task = "Call: $text"
+        if (lower.contains("remind") || lower.contains("tadhkir") || lower.contains("dhakker")) {
+            task = "Reminder: " + text
+        } else if (lower.contains("task") || lower.contains("muhimma") || lower.contains("mohim")) {
+            task = "Task: " + text
+        } else if (lower.contains("meeting") || lower.contains("maw3id") || lower.contains("rendez")) {
+            task = "Meeting: " + text
+        } else if (lower.contains("buy") || lower.contains("shop") || lower.contains("shri") || lower.contains("nshri")) {
+            task = "Shopping: " + text
+        } else if (lower.contains("call") || lower.contains("wasil") || lower.contains("nwasel")) {
+            task = "Call: " + text
         }
 
         return Pair(mood, task)
@@ -236,15 +271,15 @@ fun ChatScreen() {
             Button(
                 onClick = {
                     if (userInput.isNotBlank()) {
-                        val (mood, task) = analyzeMessage(userInput)
-                        currentMood = mood
-                        suggestedTask = task
-                        val msg = Message(userInput, true, mood = mood)
+                        val inputText = userInput
+                        val result = analyzeMessage(inputText)
+                        currentMood = result.first
+                        suggestedTask = result.second
+                        val msg = Message(inputText, true, mood = result.first)
                         messages = messages + msg
-                        val input = userInput
                         userInput = ""
                         scope.launch {
-                            val response = ai.sendMessage(input)
+                            val response = ai.sendMessage(inputText)
                             messages = messages + Message(response, false)
                         }
                     }
