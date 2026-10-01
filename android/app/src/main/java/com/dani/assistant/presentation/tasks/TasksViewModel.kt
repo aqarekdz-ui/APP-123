@@ -2,9 +2,21 @@ package com.dani.assistant.presentation.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dani.assistant.core.alarm.AlarmScheduler
+import com.dani.assistant.data.repository.TaskRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+
+// تعريف TaskItem هنا مرة واحدة فقط
+data class TaskItem(
+    val id: Int,
+    val title: String,
+    val description: String = "",
+    val priority: String = "Normal",
+    val dueDate: Long? = null,
+    val isCompleted: Boolean = false
+)
 
 class TasksViewModel(
     private val taskRepository: TaskRepository,
@@ -30,7 +42,8 @@ class TasksViewModel(
                 title = title,
                 description = description,
                 priority = priority,
-                dueDate = dueDate
+                dueDate = dueDate,
+                isCompleted = false
             )
             taskRepository.addTask(task)
             if (dueDate != null) {
@@ -53,29 +66,4 @@ class TasksViewModel(
             loadTasks()
         }
     }
-
-    companion object {
-        fun provideFactory(
-            taskRepository: TaskRepository,
-            alarmScheduler: AlarmScheduler
-        ): androidx.lifecycle.ViewModelProvider.Factory {
-            return object : androidx.lifecycle.ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return TasksViewModel(taskRepository, alarmScheduler) as T
-                }
-            }
-        }
-    }
-}
-
-interface TaskRepository {
-    suspend fun getAllTasks(): List<TaskItem>
-    suspend fun addTask(task: TaskItem)
-    suspend fun toggleTask(id: Int)
-    suspend fun deleteTask(id: Int)
-}
-
-interface AlarmScheduler {
-    fun scheduleAlarm(taskId: Int, time: Long, title: String)
 }
