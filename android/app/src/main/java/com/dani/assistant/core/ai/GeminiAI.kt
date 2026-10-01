@@ -8,22 +8,15 @@ class GeminiAI {
         modelName = "gemini-2.0-flash-exp",
         apiKey = "AQ.Ab8RN6LuSvRXB1xvu-" + "dQbYF4jC0RgNI6Ux79sIEijjPnE6Y97A"
     )
-    
+
     private val chat = model.startChat(
         history = listOf(
             content {
-                text("""
-أنت DANI، مساعد شخصي ذكي جزائري.
-تتكلم بالدارجة الجزائرية وتفهمها بطلاقة.
-مهمتك:
-1. تساعد المستخدم في مهامه اليومية بإيجاز وود.
-2. إذا طلب المستخدم تذكيراً أو مهمة، أكد له أنك فهمت.
-3. كن مباشراً ومفيداً.
-                """)
+                text("أنت DANI، مساعد شخصي ذكي جزائري. تتكلم بالدارجة الجزائرية وتفهمها. ساعد المستخدم في مهامه اليومية بإيجاز وود.")
             }
         )
     )
-    
+
     suspend fun sendMessage(message: String): String {
         return try {
             val response = chat.sendMessage(message)
