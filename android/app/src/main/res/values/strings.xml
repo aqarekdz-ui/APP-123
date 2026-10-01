@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">DANI</string>
+    <string name="tab_dashboard">الرئيسية</string>
+    <string name="tab_tasks">المهام</string>
+    <string name="tab_calendar">التقويم</string>
+    <string name="tab_memory">الذاكرة</string>
+    <string name="tab_dani">DANI</string>
+</resources>

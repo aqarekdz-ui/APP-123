@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <script>
+      (function() {
+        try {
+          var realFetch = window.fetch ? window.fetch.bind(window) : null;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return realFetch;
+            },
+            set: function(fn) {
+              realFetch = fn;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          // Fallback if defineProperty fails
+          try {
+            window.fetch = window.fetch;
+          } catch (_) {}
+        }
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DANI - المساعد الشخصي الذكي</title>
+    <meta name="description" content="وثيقة التخطيط والمعمارية الهندسية لمساعد DANI الذكي لإدارة المهام والوقت والذاكرة الشخصية لنظام Android." />
+    <meta property="og:title" content="DANI - المساعد الشخصي الذكي" />
+    <meta property="og:description" content="وثيقة التخطيط والمعمارية الهندسية لمساعد DANI الذكي لإدارة المهام والوقت والذاكرة الشخصية لنظام Android." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-neutral-950 text-neutral-100 font-['Cairo',sans-serif] antialiased selection:bg-emerald-500 selection:text-black">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

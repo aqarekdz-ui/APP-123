@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- =================================================================== -->
+    <!-- صلاحيات التنبيهات والمنبهات الدقيقة (Alarms & Notifications)           -->
+    <!-- =================================================================== -->
+
+    <!-- إلزامي (Android 13+): إظهار الإشعارات والمنبهات للمستخدم في شريط النظام -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- إلزامي (Android 12+): جدولة منبهات دقيقة في الوقت المحدد بالثانية عبر AlarmManager -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- إلزامي: إعادة تسجيل المنبهات غير المنتهية فور إقلاع الهاتف أو إعادة تشغيله -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- إلزامي للمنبه الصوتي: إيقاظ المعالج والشاشة مؤقتاً عند حلول موعد المنبه الحرج -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- إلزامي: تشغيل الاهتزاز مع رنين المنبه لتنبيه المستخدم -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- اختياري مستقبلاً: USE_EXACT_ALARM لتطبيقات المنبهات المتخصصة في متجر Play -->
+    <!-- <uses-permission android:name="android.permission.USE_EXACT_ALARM" /> -->
+
+    <application
+        android:name=".DaniApplication"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@android:style/Theme.Material.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- مستقبل تشغيل المنبه عند حلول وقته المحدد -->
+        <receiver
+            android:name=".core.alarm.AlarmReceiver"
+            android:exported="false" />
+
+        <!-- مستقبل أزرار التفاعل داخل الإشعار ("تم الإنجاز" و "تأجيل 30 دقيقة") -->
+        <receiver
+            android:name=".core.alarm.ReminderActionReceiver"
+            android:exported="false" />
+
+        <!-- مستقبل استعادة المنبهات بعد إعادة تشغيل الهاتف -->
+        <receiver
+            android:name=".core.alarm.BootCompletedReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>
