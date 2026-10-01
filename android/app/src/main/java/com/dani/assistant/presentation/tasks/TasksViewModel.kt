@@ -53,9 +53,8 @@ class TasksViewModel(
                 _isBottomSheetOpen,
                 _taskToEdit,
                 _existingReminder,
-                _taskToDelete,
-                _showExactAlarmWarning
-            ) { tasks, isSheetOpen, editTask, existingRem, delTask, exactAlarmWarning ->
+                _taskToDelete
+            ) { tasks, isSheetOpen, editTask, existingRem, delTask ->
                 TasksUiState(
                     tasks = tasks,
                     filter = filter,
@@ -63,7 +62,7 @@ class TasksViewModel(
                     taskToEdit = editTask,
                     existingReminderToEdit = existingRem,
                     taskToDelete = delTask,
-                    showExactAlarmPermissionWarning = exactAlarmWarning
+                    showExactAlarmPermissionWarning = _showExactAlarmWarning.value
                 )
             }
         }
