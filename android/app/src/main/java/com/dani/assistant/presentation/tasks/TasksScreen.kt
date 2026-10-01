@@ -1,9 +1,5 @@
 package com.dani.assistant.presentation.tasks
 
-import android.app.AlarmManager
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,21 +8,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.*
-
-data class TaskItem(
-    val id: Int,
-    val title: String,
-    val description: String = "",
-    val priority: String = "Normal",
-    val dueDate: Long? = null,
-    val isCompleted: Boolean = false
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,7 +22,6 @@ fun TasksScreen(viewModel: TasksViewModel) {
     var filterPriority by remember { mutableStateOf("All") }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        // Header
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -46,7 +31,6 @@ fun TasksScreen(viewModel: TasksViewModel) {
             Button(onClick = { showAddDialog = true }) { Text("Add Task") }
         }
 
-        // Filter
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -60,7 +44,6 @@ fun TasksScreen(viewModel: TasksViewModel) {
             }
         }
 
-        // Tasks list
         LazyColumn(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -99,9 +82,7 @@ fun TaskCard(task: TaskItem, onToggle: () -> Unit, onDelete: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (task.isCompleted) 
-                MaterialTheme.colorScheme.surfaceVariant 
-            else MaterialTheme.colorScheme.surface
+            containerColor = if (task.isCompleted) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
         )
     ) {
         Row(
