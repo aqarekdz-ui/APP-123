@@ -25,6 +25,7 @@ import java.util.Locale
 
 data class Message(val text: String, val isUser: Boolean)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen() {
     var messages by remember { mutableStateOf(listOf<Message>()) }
@@ -33,8 +34,7 @@ fun ChatScreen() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     
-    // إعداد قراءة الصوت (Text-to-Speech)
-    val tts = remember { 
+    val tts = remember {
         TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 tts.language = Locale("ar")
@@ -45,7 +45,6 @@ fun ChatScreen() {
         onDispose { tts.stop(); tts.shutdown() }
     }
 
-    // إعداد الإملاء الصوتي (Speech-to-Text)
     val speechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -72,7 +71,7 @@ fun ChatScreen() {
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                     ) {
                         Text(
-                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على 🎤 وتتحدث بالدارجة. كيفاش نقدر نعاونك اليوم؟",
+                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على الميكروفون وتتحدث بالدارجة.",
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.bodyLarge
                         )
@@ -83,14 +82,14 @@ fun ChatScreen() {
             items(messages) { message ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
+                    horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start,
+                    verticalAlignment = Alignment.Bottom
                 ) {
                     if (!message.isUser) {
                         IconButton(
-                            onClick = { tts.speak(message.text, TextToSpeech.QUEUE_FLUSH, null, null) },
-                            modifier = Modifier.align(Alignment.Bottom)
+                            onClick = { tts.speak(message.text, TextToSpeech.QUEUE_FLUSH, null, null) }
                         ) {
-                            Icon(Icons.Default.VolumeUp, contentDescription = "قراءة", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.VolumeUp, contentDescription = "قراءة")
                         }
                     }
                     Surface(
@@ -120,10 +119,9 @@ fun ChatScreen() {
                         putExtra(RecognizerIntent.EXTRA_PROMPT, "تحدث الآن...")
                     }
                     speechLauncher.launch(intent)
-                },
-                modifier = Modifier.size(48.dp)
+                }
             ) {
-                Icon(Icons.Default.Mic, contentDescription = "صوت", tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Default.Mic, contentDescription = "صوت")
             }
             
             TextField(
@@ -146,8 +144,7 @@ fun ChatScreen() {
                         }
                     }
                 },
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.size(48.dp)
+                shape = RoundedCornerShape(24.dp)
             ) {
                 Icon(Icons.Default.Send, contentDescription = "إرسال")
             }
