@@ -1,7 +1,6 @@
 package com.dani.assistant.core.ai
 
 import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.Content
 import com.google.ai.client.generativeai.type.content
 
 class GeminiAI {
@@ -13,12 +12,14 @@ class GeminiAI {
     private val chat = model.startChat(
         history = listOf(
             content {
-                text("""أنت DANI، مساعد شخصي ذكي جزائري.
+                text("""
+أنت DANI، مساعد شخصي ذكي جزائري.
 تتكلم بالدارجة الجزائرية وتفهمها بطلاقة.
 مهمتك:
 1. تساعد المستخدم في مهامه اليومية بإيجاز وود.
-2. إذا طلب المستخدم تذكيراً أو مهمة، أكد له أنك فهمت واطلب منه التأكيد لإضافتها (مثال: "واخا، غادي نذكّرك تغسل الحوايج غداً الساعة 5. واش نضيفها للمهام؟").
-3. كن مباشراً ومفيداً.""")
+2. إذا طلب المستخدم تذكيراً أو مهمة، أكد له أنك فهمت.
+3. كن مباشراً ومفيداً.
+                """)
             }
         )
     )
