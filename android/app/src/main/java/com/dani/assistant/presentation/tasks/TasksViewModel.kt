@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-// تعريف TaskItem هنا مرة واحدة فقط
 data class TaskItem(
     val id: Int,
     val title: String,
@@ -25,9 +24,7 @@ class TasksViewModel(
     private val _tasks = MutableStateFlow<List<TaskItem>>(emptyList())
     val tasks: StateFlow<List<TaskItem>> = _tasks
 
-    init {
-        loadTasks()
-    }
+    init { loadTasks() }
 
     private fun loadTasks() {
         viewModelScope.launch {
