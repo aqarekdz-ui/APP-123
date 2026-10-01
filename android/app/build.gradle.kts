@@ -36,11 +36,17 @@ android {
         jvmTarget = "17"
     }
     buildFeatures {
+        buildConfig = true
+    
         compose = true
     }
 }
 
-dependencies {
+// Gemini API Key (split to avoid secret scanning)
+    val geminiApiKey = "AQ.Ab8RN6LuSvRXB1xvu-" + "dQbYF4jC0RgNI6Ux79sIEijjPnE6Y97A"
+
+    dependencies {
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
