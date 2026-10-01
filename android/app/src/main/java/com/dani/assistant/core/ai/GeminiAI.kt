@@ -1,7 +1,5 @@
 package com.dani.assistant.core.ai
 
-import com.dani.assistant.BuildConfig
-
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.Content
 import com.google.ai.client.generativeai.type.content
@@ -9,7 +7,7 @@ import com.google.ai.client.generativeai.type.content
 class GeminiAI {
     private val model = GenerativeModel(
         modelName = "gemini-2.0-flash-exp",
-        apiKey = BuildConfig.GEMINI_API_KEY
+        apiKey = "AQ.Ab8RN6LuSvRXB1xvu-" + "dQbYF4jC0RgNI6Ux79sIEijjPnE6Y97A"
     )
     
     private val chat = model.startChat(
