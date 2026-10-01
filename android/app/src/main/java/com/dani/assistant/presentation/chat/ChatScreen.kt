@@ -9,10 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -76,7 +72,7 @@ fun ChatScreen() {
                         )
                     ) {
                         Text(
-                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على الميكروفون وتتحدث بالدارجة.",
+                            text = "مرحباً! أنا DANI. تقدر تكتب لي أو تضغط على زر الميكروفون وتتحدث بالدارجة.",
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.bodyLarge
                         )
@@ -91,16 +87,13 @@ fun ChatScreen() {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (!message.isUser) {
-                        IconButton(
+                        Button(
                             onClick = {
                                 tts.speak(message.text, TextToSpeech.QUEUE_FLUSH, null, null)
-                            }
+                            },
+                            modifier = Modifier.padding(end = 8.dp)
                         ) {
-                            Icon(
-                                Icons.Default.VolumeUp,
-                                contentDescription = "قراءة",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                            Text("")
                         }
                     }
                     Surface(
@@ -122,7 +115,7 @@ fun ChatScreen() {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
+            Button(
                 onClick = {
                     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -132,7 +125,7 @@ fun ChatScreen() {
                     speechLauncher.launch(intent)
                 }
             ) {
-                Icon(Icons.Default.Mic, contentDescription = "صوت")
+                Text("🎤")
             }
 
             TextField(
@@ -157,7 +150,7 @@ fun ChatScreen() {
                 },
                 shape = RoundedCornerShape(24.dp)
             ) {
-                Icon(Icons.Default.Send, contentDescription = "إرسال")
+                Text("إرسال")
             }
         }
     }
