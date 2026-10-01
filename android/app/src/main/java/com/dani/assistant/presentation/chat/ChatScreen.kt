@@ -25,6 +25,7 @@ import java.util.Locale
 
 data class Message(val text: String, val isUser: Boolean)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen() {
     var messages by remember { mutableStateOf(listOf<Message>()) }
