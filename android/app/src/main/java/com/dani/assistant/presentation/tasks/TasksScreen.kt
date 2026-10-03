@@ -10,6 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dani.assistant.domain.model.PriorityLevel
+import com.dani.assistant.domain.model.Task
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -27,15 +29,22 @@ fun TasksScreen(viewModel: TasksViewModel) {
         }
 
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("All", "High", "Normal", "Low").forEach { priority ->
+            listOf("All", "High", "Medium", "Low").forEach { priority ->
                 FilterChip(selected = filterPriority == priority, onClick = { filterPriority = priority }, label = { Text(priority) })
             }
         }
 
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val filteredTasks = if (filterPriority == "All") tasks else tasks.filter { it.priority == filterPriority }
+            val filteredTasks = if (filterPriority == "All") tasks else tasks.filter { 
+                val pName = when(it.priority) {
+                    PriorityLevel.HIGH -> "High"
+                    PriorityLevel.LOW -> "Low"
+                    else -> "Medium"
+                }
+                pName == filterPriority 
+            }
             items(filteredTasks) { task ->
-                TaskCard(task = task, onToggle = { viewModel.toggleTask(task.id) }, onDelete = { viewModel.deleteTask(task.id) })
+                TaskCard(task = task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) })
             }
         }
 
@@ -49,24 +58,31 @@ fun TasksScreen(viewModel: TasksViewModel) {
 }
 
 @Composable
-fun TaskCard(task: TaskItem, onToggle: () -> Unit, onDelete: () -> Unit) {
+fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
     val priorityColor = when (task.priority) {
-        "High" -> MaterialTheme.colorScheme.error
-        "Low" -> MaterialTheme.colorScheme.primary
+        PriorityLevel.HIGH -> MaterialTheme.colorScheme.error
+        PriorityLevel.LOW -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.secondary
     }
+    
+    val priorityName = when (task.priority) {
+        PriorityLevel.HIGH -> "High"
+        PriorityLevel.LOW -> "Low"
+        else -> "Medium"
+    }
+
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (task.isCompleted) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface)) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = task.isCompleted, onCheckedChange = { onToggle() })
             Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
                 Text(text = task.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, style = if (task.isCompleted) MaterialTheme.typography.bodyLarge.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough) else MaterialTheme.typography.bodyLarge)
-                if (task.description.isNotEmpty()) Text(task.description, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                if (!task.description.isNullOrEmpty()) Text(task.description, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                 Row(modifier = Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(task.priority, fontSize = 10.sp, color = priorityColor, fontWeight = FontWeight.Bold)
+                    Text(priorityName, fontSize = 10.sp, color = priorityColor, fontWeight = FontWeight.Bold)
                     if (task.dueDate != null) Text(SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(task.dueDate)), fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
                 }
             }
-            IconButton(onClick = onDelete) { Text("", fontSize = 18.sp) }
+            IconButton(onClick = onDelete) { Text("🗑", fontSize = 18.sp) }
         }
     }
 }
@@ -75,7 +91,7 @@ fun TaskCard(task: TaskItem, onToggle: () -> Unit, onDelete: () -> Unit) {
 fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?) -> Unit) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var priority by remember { mutableStateOf("Normal") }
+    var priority by remember { mutableStateOf("Medium") }
     var dueDate by remember { mutableStateOf<Long?>(null) }
 
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Add Task") }, text = {
@@ -85,7 +101,7 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?) 
             TextField(value = description, onValueChange = { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("High", "Normal", "Low").forEach { p ->
+                listOf("High", "Medium", "Low").forEach { p ->
                     FilterChip(selected = priority == p, onClick = { priority = p }, label = { Text(p) })
                 }
             }
