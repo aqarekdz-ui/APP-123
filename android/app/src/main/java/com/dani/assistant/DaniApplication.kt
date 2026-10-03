@@ -36,6 +36,9 @@ class DaniApplication : Application() {
 
         // الملخص الصباحي اليومي
         try { MorningDigest.schedule(this) } catch (e: Exception) { }
+
+        // مراقب الإعلانات (WorkManager)
+        try { com.dani.assistant.core.watch.AdWatcher.reschedule(this) } catch (e: Exception) { }
     }
 
     companion object {

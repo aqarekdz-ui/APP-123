@@ -3,6 +3,8 @@ package com.dani.assistant.presentation.settings
 import android.app.TimePickerDialog
 import android.content.Context
 import com.dani.assistant.core.digest.MorningDigest
+import com.dani.assistant.core.watch.AdWatcher
+import com.dani.assistant.core.watch.WatchSettings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,6 +53,12 @@ fun SettingsScreen(onBack: () -> Unit) {
     var confirmClearChat by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf<String?>(null) }
     var lockOn by remember { mutableStateOf(AppSettings.lockEnabled(context)) }
+    var watchOn by remember { mutableStateOf(WatchSettings.enabled(context)) }
+    var watchUrl by remember { mutableStateOf(WatchSettings.url(context)) }
+    var watchReq by remember { mutableStateOf(WatchSettings.required(context)) }
+    var watchEx by remember { mutableStateOf(WatchSettings.exclude(context)) }
+    var watchInt by remember { mutableStateOf(WatchSettings.intervalMin(context)) }
+    var watchLast by remember { mutableStateOf(WatchSettings.lastSummary(context)) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
@@ -97,6 +105,34 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }) { Text("تغيير") }
             }
         }
+
+        // ---- مراقب الإعلانات ----
+        Text("مراقب الإعلانات (Ouedkniss)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        SettingSwitch(
+            title = "مراقبة تلقائية",
+            desc = "يفتح صفحة البحث في الخلفية، يفحص الإعلانات الجديدة، ويرسل تنبيه إذا وصف الإعلان ما فيهش الكلمات الممنوعة.",
+            checked = watchOn
+        ) {
+            watchOn = it
+            WatchSettings.setEnabled(context, it)
+            AdWatcher.reschedule(context)
+        }
+        androidx.compose.material3.OutlinedTextField(value = watchUrl, onValueChange = { watchUrl = it; WatchSettings.setUrl(context, it) }, label = { Text("رابط صفحة البحث") }, modifier = Modifier.fillMaxWidth())
+        androidx.compose.material3.OutlinedTextField(value = watchReq, onValueChange = { watchReq = it; WatchSettings.setRequired(context, it) }, label = { Text("كلمات لازم تكون في الإعلان (بفاصلة)") }, modifier = Modifier.fillMaxWidth())
+        androidx.compose.material3.OutlinedTextField(value = watchEx, onValueChange = { watchEx = it; WatchSettings.setExclude(context, it) }, label = { Text("كلمات ممنوعة في الوصف (بفاصلة)") }, modifier = Modifier.fillMaxWidth())
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("كل:", fontSize = 13.sp)
+            listOf(30 to "30 د", 60 to "1 س", 180 to "3 س").forEach { (m, label) ->
+                val pick = { watchInt = m; WatchSettings.setIntervalMin(context, m); AdWatcher.reschedule(context) }
+                if (watchInt == m) Button(onClick = pick) { Text(label) } else OutlinedButton(onClick = pick) { Text(label) }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { AdWatcher.runNow(context); msg = "بدا الفحص في الخلفية (يدوم دقيقة تقريباً). ارجع شوف النتيجة." }) { Text("جرّب الآن") }
+            OutlinedButton(onClick = { watchLast = WatchSettings.lastSummary(context) }) { Text("حدّث النتيجة") }
+            OutlinedButton(onClick = { WatchSettings.clearSeen(context); msg = "تم مسح قائمة الإعلانات المشاهدة" }) { Text("صفّر") }
+        }
+        Text("آخر فحص: " + watchLast, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
 
         // ---- المظهر ----
         Text("المظهر", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
