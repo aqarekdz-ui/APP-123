@@ -155,6 +155,26 @@ object KnowledgeBase {
         save(ctx, list)
     }
 
+    /** دمج مدخلات من نسخة احتياطية: يتخطى نفس المفتاح، ويضمن id فريد. يرجع عدد المضاف. */
+    fun importEntries(ctx: Context, entries: List<KnowledgeEntry>): Int {
+        val list = load(ctx)
+        var added = 0
+        var nextId = (list.maxOfOrNull { it.id } ?: 0L) + 1
+        entries.forEach { e ->
+            if (list.none { it.key == e.key }) {
+                val id = if (list.any { it.id == e.id }) nextId++ else e.id
+                list.add(e.copy(id = id))
+                added++
+            }
+        }
+        while (list.size > MAX_ENTRIES) {
+            val victim = list.minWithOrNull(compareBy({ it.hits }, { it.createdAt })) ?: break
+            list.remove(victim)
+        }
+        save(ctx, list)
+        return added
+    }
+
     fun getAll(ctx: Context): List<KnowledgeEntry> = load(ctx).sortedByDescending { it.createdAt }
 
     fun remove(ctx: Context, id: Long) = save(ctx, load(ctx).filter { it.id != id })

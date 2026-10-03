@@ -27,6 +27,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.dani.assistant.core.backup.BackupManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.dani.assistant.core.knowledge.KnowledgeBase
 import com.dani.assistant.core.memory.MemoryStore
 import com.dani.assistant.core.memory.SecretStore
@@ -40,12 +53,133 @@ fun MemoryScreen() {
     var revealed by remember { mutableStateOf(setOf<String>()) }
     var input by remember { mutableStateOf("") }
 
+    // ---- النسخ الاحتياطي ----
+    val scope = rememberCoroutineScope()
+    var backupMsg by remember { mutableStateOf<String?>(null) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var exportPass by remember { mutableStateOf("") }
+    var importJson by remember { mutableStateOf<String?>(null) }
+    var importPass by remember { mutableStateOf("") }
+
+    fun refreshAll() {
+        facts = MemoryStore.getAll(context)
+        secrets = SecretStore.getAll(context)
+        learned = KnowledgeBase.getAll(context)
+    }
+
+    var pendingExport by remember { mutableStateOf("") }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val json = BackupManager.export(context, pendingExport)
+                        context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+                    }
+                    backupMsg = "تم حفظ النسخة الاحتياطية ✅"
+                } catch (e: Exception) {
+                    backupMsg = "فشل التصدير: " + (e.message ?: "")
+                }
+            }
+        }
+    }
+
+    fun doImport(json: String, pass: String) {
+        scope.launch {
+            try {
+                val r = withContext(Dispatchers.IO) { BackupManager.import(context, json, pass) }
+                refreshAll()
+                backupMsg = "تم الاستيراد: " + r.tasks + " مهمة، " + r.facts + " معلومة، " + r.knowledge + " معرفة، " + r.secrets + " سر" +
+                    (if (r.secretsSkipped) " (الأسرار تخطّيناها: كلمة سر النسخة ناقصة أو غلط)" else "")
+            } catch (e: Exception) {
+                backupMsg = "فشل الاستيراد: " + (e.message ?: "")
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            scope.launch {
+                val text = try {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(uri)?.use { String(it.readBytes(), Charsets.UTF_8) }
+                    }
+                } catch (e: Exception) { null }
+                if (text == null || !BackupManager.isValid(text)) {
+                    backupMsg = "الملف ماشي نسخة DANI صحيحة"
+                } else if (BackupManager.hasSecrets(text)) {
+                    importPass = ""
+                    importJson = text
+                } else {
+                    doImport(text, "")
+                }
+            }
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("الذاكرة", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text(
             "DANI يتعلم منك تلقائياً ويسجل كل شيء في ملف خاص على هاتفك. يبحث فيه أولاً، ولا يسأل Gemini إلا إذا ما لقاش الجواب. احذف أي شيء ما تحبهش.",
             color = MaterialTheme.colorScheme.outline
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { exportPass = ""; showExportDialog = true }) { Text("تصدير نسخة") }
+            Button(onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }) { Text("استيراد نسخة") }
+        }
+        val bm = backupMsg
+        if (bm != null) Text(bm, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+
+        if (showExportDialog) {
+            AlertDialog(
+                onDismissRequest = { showExportDialog = false },
+                title = { Text("تصدير نسخة احتياطية") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("المهام والمعلومات والمعرفة تتصدّر دايماً. الأسرار تتضاف مشفّرة فقط إذا كتبت كلمة سر للنسخة (تحتاجها وقت الاستيراد).", fontSize = 12.sp)
+                        TextField(
+                            value = exportPass,
+                            onValueChange = { exportPass = it },
+                            label = { Text("كلمة سر النسخة (اختياري)") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            singleLine = true
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        pendingExport = exportPass
+                        showExportDialog = false
+                        exportLauncher.launch("dani_backup_" + SimpleDateFormat("yyyyMMdd_HHmm", Locale.US).format(Date()) + ".json")
+                    }) { Text("تصدير") }
+                },
+                dismissButton = { TextButton(onClick = { showExportDialog = false }) { Text("إلغاء") } }
+            )
+        }
+
+        val ij = importJson
+        if (ij != null) {
+            AlertDialog(
+                onDismissRequest = { importJson = null },
+                title = { Text("النسخة فيها أسرار") },
+                text = {
+                    TextField(
+                        value = importPass,
+                        onValueChange = { importPass = it },
+                        label = { Text("كلمة سر النسخة") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = { importJson = null; doImport(ij, importPass) }) { Text("استيراد") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { importJson = null; doImport(ij, "") }) { Text("بدون الأسرار") }
+                }
+            )
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             TextField(
                 value = input,
