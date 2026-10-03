@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import com.dani.assistant.data.repository.TaskRepository
 import com.dani.assistant.domain.model.PriorityLevel
+import com.dani.assistant.domain.model.Recurrence
 import com.dani.assistant.domain.model.Task
 import com.dani.assistant.domain.model.TaskStatus
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,7 +31,7 @@ class TasksViewModel(
 
     fun dismissPermissionPrompt() { _needsExactAlarmPermission.value = false }
 
-    fun addTask(title: String, description: String, priority: String, dueDate: Long?) {
+    fun addTask(title: String, description: String, priority: String, dueDate: Long?, recurrence: Recurrence = Recurrence.NONE) {
         viewModelScope.launch {
             val priorityLevel = when (priority) {
                 "High" -> PriorityLevel.IMPORTANT
@@ -43,7 +44,8 @@ class TasksViewModel(
                 description = description.ifEmpty { null },
                 priority = priorityLevel,
                 dueDate = dueDate,
-                status = TaskStatus.NEW
+                status = TaskStatus.NEW,
+                recurrence = if (dueDate != null) recurrence else Recurrence.NONE
             )
             
             val id = taskRepository.insertTask(newTask)
@@ -56,7 +58,7 @@ class TasksViewModel(
         }
     }
 
-    fun updateTask(task: Task, title: String, description: String, priority: String, dueDate: Long?) {
+    fun updateTask(task: Task, title: String, description: String, priority: String, dueDate: Long?, recurrence: Recurrence = task.recurrence) {
         viewModelScope.launch {
             val newPriority = if (priorityLabel(task.priority) == priority) task.priority else when (priority) {
                 "High" -> PriorityLevel.IMPORTANT
@@ -67,7 +69,8 @@ class TasksViewModel(
                 title = title,
                 description = description.ifEmpty { null },
                 priority = newPriority,
-                dueDate = dueDate
+                dueDate = dueDate,
+                recurrence = if (dueDate != null) recurrence else Recurrence.NONE
             )
             taskRepository.updateTask(updated)
 

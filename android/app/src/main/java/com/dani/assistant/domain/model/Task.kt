@@ -10,7 +10,8 @@ data class Task(
     val estimatedMinutes: Int = 30,
     val dueDate: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val completedAt: Long? = null
+    val completedAt: Long? = null,
+    val recurrence: Recurrence = Recurrence.NONE
 ) {
     val isCompleted: Boolean
         get() = status == TaskStatus.COMPLETED
@@ -22,4 +23,11 @@ enum class TaskStatus {
     COMPLETED,
     POSTPONED,
     CANCELLED
+}
+
+enum class Recurrence(val arabic: String) {
+    NONE("بدون"),
+    DAILY("يومي"),
+    WEEKLY("أسبوعي"),
+    MONTHLY("شهري")
 }

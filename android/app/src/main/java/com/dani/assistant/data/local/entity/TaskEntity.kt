@@ -37,5 +37,7 @@ data class TaskEntity(
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "completed_at")
-    val completedAt: Long? = null
+    val completedAt: Long? = null,
+    @ColumnInfo(name = "recurrence", defaultValue = "NONE")
+    val recurrence: String = "NONE"
 )

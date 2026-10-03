@@ -7,6 +7,7 @@ import com.dani.assistant.core.knowledge.KnowledgeEntry
 import com.dani.assistant.core.memory.MemoryStore
 import com.dani.assistant.core.memory.SecretStore
 import com.dani.assistant.domain.model.PriorityLevel
+import com.dani.assistant.domain.model.Recurrence
 import com.dani.assistant.domain.model.ReminderType
 import com.dani.assistant.domain.model.Task
 import com.dani.assistant.domain.model.TaskStatus
@@ -83,6 +84,7 @@ object BackupManager {
                     .put("due", it.dueDate ?: JSONObject.NULL)
                     .put("created", it.createdAt)
                     .put("completed", it.completedAt ?: JSONObject.NULL)
+                    .put("rec", it.recurrence.name)
             )
         }
         val knowledgeArr = JSONArray()
@@ -132,7 +134,8 @@ object BackupManager {
                 estimatedMinutes = o.optInt("est", 30),
                 dueDate = due,
                 createdAt = created,
-                completedAt = if (o.isNull("completed")) null else o.getLong("completed")
+                completedAt = if (o.isNull("completed")) null else o.getLong("completed"),
+                recurrence = try { Recurrence.valueOf(o.optString("rec", "NONE")) } catch (e: Exception) { Recurrence.NONE }
             )
             val id = repo.insertTask(task)
             tasksAdded++

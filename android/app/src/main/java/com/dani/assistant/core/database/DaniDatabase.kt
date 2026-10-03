@@ -19,7 +19,7 @@ import com.dani.assistant.data.local.entity.TaskEntity
         TaskEntity::class,
         ReminderEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class DaniDatabase : RoomDatabase() {
@@ -52,6 +52,12 @@ abstract class DaniDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `tasks` ADD COLUMN `recurrence` TEXT NOT NULL DEFAULT 'NONE'")
+            }
+        }
+
         fun getDatabase(context: Context): DaniDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -59,7 +65,7 @@ abstract class DaniDatabase : RoomDatabase() {
                     DaniDatabase::class.java,
                     "dani_database"
                 )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
                 INSTANCE = instance
                 instance

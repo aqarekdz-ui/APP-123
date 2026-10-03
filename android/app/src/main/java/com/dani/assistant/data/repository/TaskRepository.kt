@@ -7,6 +7,8 @@ import com.dani.assistant.data.local.dao.TaskDao
 import com.dani.assistant.data.local.entity.ReminderEntity
 import com.dani.assistant.data.local.entity.TaskEntity
 import com.dani.assistant.domain.model.PriorityLevel
+import com.dani.assistant.domain.model.Recurrence
+import kotlinx.coroutines.flow.first
 import com.dani.assistant.domain.model.Reminder
 import com.dani.assistant.domain.model.ReminderType
 import com.dani.assistant.domain.model.Task
@@ -102,7 +104,44 @@ class TaskRepositoryImpl(
         // If completed, cancel any scheduled reminder for this task
         if (isNowCompleted) {
             cancelTaskReminder(task.id)
+            if (task.recurrence != Recurrence.NONE) spawnNextOccurrence(task)
         }
+    }
+
+    /** مهمة متكررة: عند الإنجاز ننشئ النسخة الجاية بموعد مستقبلي ونجدول تذكيرها. */
+    private suspend fun spawnNextOccurrence(task: Task) {
+        val now = System.currentTimeMillis()
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = task.dueDate ?: now
+        fun step() {
+            when (task.recurrence) {
+                Recurrence.DAILY -> cal.add(Calendar.DAY_OF_YEAR, 1)
+                Recurrence.WEEKLY -> cal.add(Calendar.WEEK_OF_YEAR, 1)
+                Recurrence.MONTHLY -> cal.add(Calendar.MONTH, 1)
+                Recurrence.NONE -> {}
+            }
+        }
+        step()
+        while (cal.timeInMillis <= now) step()
+        val next = cal.timeInMillis
+
+        // منع التكرار إذا الإنجاز تلغى وتعاود (toggle)
+        val exists = taskDao.getAllTasks().first().any {
+            it.title == task.title && it.recurrence == task.recurrence.name &&
+                it.dueDate == next && it.status != TaskStatus.COMPLETED.name
+        }
+        if (exists) return
+
+        val newId = taskDao.insertTask(
+            task.copy(
+                id = 0,
+                status = TaskStatus.NEW,
+                dueDate = next,
+                createdAt = now,
+                completedAt = null
+            ).toEntity()
+        )
+        setTaskReminder(newId, task.title, next, ReminderType.NOTIFICATION)
     }
 
     override fun getReminderForTask(taskId: Long): Flow<Reminder?> {
@@ -172,7 +211,8 @@ class TaskRepositoryImpl(
             estimatedMinutes = estimatedMinutes,
             dueDate = dueDate,
             createdAt = createdAt,
-            completedAt = completedAt
+            completedAt = completedAt,
+            recurrence = try { Recurrence.valueOf(recurrence) } catch (e: Exception) { Recurrence.NONE }
         )
     }
 
@@ -187,7 +227,8 @@ class TaskRepositoryImpl(
             estimatedMinutes = estimatedMinutes,
             dueDate = dueDate,
             createdAt = createdAt,
-            completedAt = completedAt
+            completedAt = completedAt,
+            recurrence = recurrence.name
         )
     }
 
