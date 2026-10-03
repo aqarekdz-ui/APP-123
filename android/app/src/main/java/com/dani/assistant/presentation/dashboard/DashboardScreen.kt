@@ -1,5 +1,9 @@
 package com.dani.assistant.presentation.dashboard
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +29,7 @@ import com.dani.assistant.domain.model.PriorityLevel
 import com.dani.assistant.domain.model.Task
 import com.dani.assistant.presentation.tasks.TasksViewModel
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -45,6 +50,7 @@ fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}) 
             StatCard("مهمة", urgent.toString(), Modifier.weight(1f))
             StatCard("منجزة", done.toString(), Modifier.weight(1f))
         }
+        WeeklyStats(tasks)
         Text("المهام القادمة", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (pending.isEmpty()) {
             Text("لا توجد مهام. أضف مهمة من تبويب المهام أو من الشات.", color = MaterialTheme.colorScheme.outline)
@@ -78,6 +84,42 @@ private fun UpcomingTask(task: Task) {
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.outline
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeeklyStats(tasks: List<Task>) {
+    val days = (6 downTo 0).map { off ->
+        val c = Calendar.getInstance()
+        c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0)
+        c.add(Calendar.DAY_OF_YEAR, -off)
+        c.timeInMillis
+    }
+    val dayMs = 24L * 60L * 60L * 1000L
+    val counts = days.map { start ->
+        tasks.count { t ->
+            val ca = t.completedAt
+            ca != null && ca >= start && ca < start + dayMs
+        }
+    }
+    val total = counts.sum()
+    val created = tasks.count { it.createdAt >= days.first() }
+    val max = (counts.maxOrNull() ?: 0).coerceAtLeast(1)
+    val fmt = SimpleDateFormat("EEE", Locale("ar"))
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("آخر 7 أيام", fontWeight = FontWeight.Bold)
+            Text("أنجزت " + total + " ، وأضفت " + created, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                days.forEachIndexed { i, d ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(counts[i].toString(), fontSize = 10.sp)
+                        Box(modifier = Modifier.width(22.dp).height((8 + 48 * counts[i] / max).dp).background(MaterialTheme.colorScheme.primary))
+                        Text(fmt.format(Date(d)), fontSize = 10.sp)
+                    }
+                }
             }
         }
     }
