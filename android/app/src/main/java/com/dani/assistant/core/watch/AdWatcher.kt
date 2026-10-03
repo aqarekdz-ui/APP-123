@@ -126,6 +126,9 @@ internal object WebViewFetcher {
     }
 }
 
+data class WatchAd(val url: String, val title: String)
+data class WatchResult(val summary: String, val ads: List<WatchAd>)
+
 object AdWatcher {
     private const val WORK = "ad_watch"
     private const val WORK_NOW = "ad_watch_now"
@@ -162,9 +165,7 @@ object AdWatcher {
 
     private fun words(csv: String) = csv.split(',', '،', '\n').map { it.trim().lowercase() }.filter { it.isNotEmpty() }
 
-    private data class Ad(val url: String, val title: String)
-
-    suspend fun runOnce(ctx: Context): String {
+    suspend fun runOnce(ctx: Context, notify: Boolean = true, ignoreSeen: Boolean = false, maxDetail: Int = MAX_DETAIL_PER_RUN): WatchResult {
         val url = WatchSettings.url(ctx)
         val required = words(WatchSettings.required(ctx))
         val exclude = words(WatchSettings.exclude(ctx))
@@ -179,11 +180,11 @@ object AdWatcher {
         if (arr.length() == 0) {
             val s = "$stamp: ما لقيتش إعلانات في الصفحة (الموقع ممكن حظر الطلب، تغيّر، ولا ما فيش إنترنت)"
             WatchSettings.setLastSummary(ctx, s)
-            return s
+            return WatchResult(s, emptyList())
         }
 
         val seen = WatchSettings.seen(ctx)
-        val candidates = ArrayList<Ad>()
+        val candidates = ArrayList<WatchAd>()
         var total = 0
         for (i in 0 until arr.length()) {
             val o = arr.optJSONObject(i) ?: continue
@@ -193,15 +194,15 @@ object AdWatcher {
             if (slug.lowercase().startsWith("cherche") || slug.lowercase().startsWith("recherche")) continue // طلبات بحث مش عروض
             if (!required.all { hay.contains(it) }) continue
             total++
-            if (u in seen) continue
-            candidates.add(Ad(u, o.optString("t").ifEmpty { slug }))
+            if (!ignoreSeen && u in seen) continue
+            candidates.add(WatchAd(u, o.optString("t").ifEmpty { slug }))
         }
 
-        val good = ArrayList<Ad>()
+        val good = ArrayList<WatchAd>()
         var excluded = 0
         var checked = 0
         for (ad in candidates) {
-            if (checked >= MAX_DETAIL_PER_RUN) break // الباقي يتفحص في الدورة الجاية
+            if (checked >= maxDetail) break // الباقي يتفحص في الدورة الجاية
             checked++
             val dj = WebViewFetcher.eval(ctx, ad.url, DETAIL_JS, settleMs = 6_000)
             if (dj == null) continue // فشل التحميل: ما نعلّموهش مشاهد، نعاود لاحقاً
@@ -221,13 +222,13 @@ object AdWatcher {
             "$excluded فيه وسيط/وكالة، ${good.size} جديد وصالح" +
             (if (candidates.size > checked) " (باقي ${candidates.size - checked} للدورة الجاية)" else "")
         WatchSettings.setLastSummary(ctx, s)
-        if (good.isNotEmpty()) notify(ctx, good)
-        return s
+        if (notify && good.isNotEmpty()) notify(ctx, good)
+        return WatchResult(s, good)
     }
 
     private fun parseArray(s: String?): JSONArray = try { if (s == null) JSONArray() else JSONArray(s) } catch (e: Exception) { JSONArray() }
 
-    private fun notify(ctx: Context, ads: List<Ad>) {
+    private fun notify(ctx: Context, ads: List<WatchAd>) {
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= 26) {
             nm.createNotificationChannel(NotificationChannel(CHANNEL, "مراقب الإعلانات", NotificationManager.IMPORTANCE_HIGH))

@@ -8,6 +8,9 @@ import org.json.JSONObject
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import com.dani.assistant.core.web.WebSearch
+import com.dani.assistant.core.watch.AdWatcher
+import com.dani.assistant.core.watch.WatchResult
+import com.dani.assistant.core.watch.WatchSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -67,8 +70,36 @@ data class Message(val text: String, val isUser: Boolean, val timestamp: Long = 
 
 private val commandTriggers = listOf(
     "ذكرني", "ذكرلي", "فكرني", "فكرلي", "ضيف مهمة", "اضف مهمة", "زيد مهمة", "سجل مهمة", "اضافة مهمة",
-    "ضيف تذكير", "زيد تذكير", "remind me", "rappelle moi", "rappelle-moi", "add task"
+    "ضيف تذكير", "زيد تذكير", "remind me", "rappelle moi", "rappelle-moi", "add task",
+    "نبهني", "نبهلي", "فيقني", "فيقلي", "ايقظني", "يقظني", "wake me", "reveille", "منبه"
 )
+
+private fun normAr(text: String): String = text.lowercase()
+    .replace(Regex("[\\u064B-\\u0652\\u0640]"), "")
+    .replace("أ", "ا").replace("إ", "ا").replace("آ", "ا").replace("ى", "ي")
+
+private fun isWakeRequest(text: String): Boolean {
+    val n = normAr(text)
+    return listOf("فيقني", "فيقلي", "ايقظني", "يقظني", "wake me", "reveille", "منبه").any { n.contains(it) }
+}
+
+private fun isAdSiteRequest(text: String): Boolean {
+    val n = normAr(text)
+    return listOf("ouedkniss", "oudkniss", "oudknis", "ouedknis", "وادكنيس", "واد كنيس", "اودكنيس", "ودكنيس").any { n.contains(it) }
+}
+
+private fun wantsAlerts(text: String): Boolean {
+    val n = normAr(text)
+    return listOf("نبهني", "نبهلي", "تنبيه", "اعلمني", "علمني", "راقب", "notify", "alert").any { n.contains(it) }
+}
+
+private fun adReply(r: WatchResult?): String {
+    if (r == null) return "⚠️ صار خطأ وأنا نقرا الإعلانات، عاود جرّب."
+    if (r.ads.isEmpty()) return "🔍 " + r.summary + "\nما لقيتش عروض كراء بدون وسيط/وكالة دابا."
+    return "🏠 لقيت " + r.ads.size + " عرض بدون وسيط/وكالة:\n\n" +
+        r.ads.take(6).mapIndexed { i, a -> (i + 1).toString() + ". " + a.title.take(90) + "\n" + a.url }.joinToString("\n\n") +
+        "\n\n" + r.summary
+}
 
 private fun looksLikeTaskCommand(text: String): Boolean {
     val n = text.lowercase()
@@ -79,7 +110,7 @@ private fun looksLikeTaskCommand(text: String): Boolean {
 }
 
 /** ينشئ المهمة والتذكير مباشرة، ويرجع نص التأكيد. */
-private suspend fun createTaskFromCommand(cmd: ParsedTask): String {
+private suspend fun createTaskFromCommand(cmd: ParsedTask, alarm: Boolean = false): String {
     val repo = DaniApplication.instance.taskRepository
     val id = repo.insertTask(
         Task(title = cmd.title, priority = cmd.priority, dueDate = cmd.dueDate, recurrence = cmd.recurrence)
@@ -89,7 +120,7 @@ private suspend fun createTaskFromCommand(cmd: ParsedTask): String {
     if (due != null) {
         sb.append("\n⏰ ").append(SimpleDateFormat("EEEE dd/MM HH:mm", Locale.getDefault()).format(Date(due)))
         if (cmd.recurrence != Recurrence.NONE) sb.append("\n🔁 ").append(cmd.recurrence.arabic)
-        val r = repo.setTaskReminder(id, cmd.title, due, ReminderType.NOTIFICATION)
+        val r = repo.setTaskReminder(id, cmd.title, due, if (alarm) ReminderType.ALARM_CLOCK else ReminderType.NOTIFICATION)
         if (r is ScheduleResult.ExactAlarmPermissionRequired) {
             sb.append("\n⚠️ التذكير مجدول لكن تقريبي: إذن المنبهات الدقيقة مش مفعّل (تبويب المهام)")
         }
@@ -335,10 +366,27 @@ fun ChatScreen() {
             if (sending) {
                 Button(onClick = { sendJob?.cancel() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(24.dp)) { Text("⏹ وقف") }
             } else Button(onClick = { if (userInput.isNotBlank()) { val inputText = userInput; if (inputText.startsWith("تذكر") || inputText.lowercase().startsWith("remember")) { val fact = inputText.substringAfter(" ", "").trim(); if (fact.isNotEmpty()) { if (SecretStore.looksSensitive(fact)) SecretStore.add(context, fact) else MemoryStore.add(context, fact) } }; val result = analyzeMessage(inputText); currentMood = result.first; suggestedTask = result.second; val msg = Message(inputText, true, mood = result.first); messages = messages + msg; userInput = ""; sending = true; sendJob = scope.launch { try {
+                if (isAdSiteRequest(inputText)) {
+                    val pIdx = messages.size
+                    messages = messages + Message("🔎 نفتح Ouedkniss ونقرا الإعلانات واحد واحد... (تدوم دقيقة ولا زيادة)", false, mood = "إعلانات")
+                    val res = try { AdWatcher.runOnce(context, notify = true, ignoreSeen = true, maxDetail = 6) }
+                        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                        catch (e: Exception) { null }
+                    var txt = adReply(res)
+                    if (wantsAlerts(inputText)) {
+                        WatchSettings.setEnabled(context, true)
+                        AdWatcher.reschedule(context)
+                        txt += "\n\n🔔 فعّلت المراقبة التلقائية (كل " + WatchSettings.intervalMin(context) + " دقيقة) وننبهك إذا جا عرض جديد."
+                    } else {
+                        txt += "\n\n(قولي \"نبهني\" مع الطلب باش نراقب تلقائياً ونبعثلك تنبيه)"
+                    }
+                    messages = messages.toMutableList().also { if (pIdx < it.size) it[pIdx] = Message(txt, false, mood = "إعلانات") }
+                    return@launch
+                }
                 if (looksLikeTaskCommand(inputText)) {
                     val cmd = ai.parseTaskCommand(inputText)
                     if (cmd != null) {
-                        val reply = try { createTaskFromCommand(cmd) } catch (e: Exception) { null }
+                        val reply = try { createTaskFromCommand(cmd, isWakeRequest(inputText)) } catch (e: Exception) { null }
                         if (reply != null) {
                             suggestedTask = null
                             messages = messages + Message(reply, false, mood = "مهمة")
