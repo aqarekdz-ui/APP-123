@@ -1,5 +1,7 @@
 package com.dani.assistant.data.repository
 
+import com.dani.assistant.DaniApplication
+import com.dani.assistant.widget.TaskWidgetProvider
 import com.dani.assistant.core.alarm.AlarmScheduler
 import com.dani.assistant.core.alarm.ScheduleResult
 import com.dani.assistant.data.local.dao.ReminderDao
@@ -40,6 +42,10 @@ class TaskRepositoryImpl(
     private val alarmScheduler: AlarmScheduler
 ) : TaskRepository {
 
+    private fun notifyWidget() {
+        try { TaskWidgetProvider.refresh(DaniApplication.instance) } catch (e: Exception) { }
+    }
+
     override fun getAllTasks(): Flow<List<Task>> {
         return taskDao.getAllTasks().map { entities ->
             entities.map { it.toDomainModel() }
@@ -75,22 +81,25 @@ class TaskRepositoryImpl(
     }
 
     override suspend fun insertTask(task: Task): Long {
-        return taskDao.insertTask(task.toEntity())
+        return taskDao.insertTask(task.toEntity()).also { notifyWidget() }
     }
 
     override suspend fun updateTask(task: Task) {
         taskDao.updateTask(task.toEntity())
+        notifyWidget()
     }
 
     override suspend fun deleteTask(task: Task) {
         // Cancel alarm if exists
         cancelTaskReminder(task.id)
         taskDao.deleteTask(task.toEntity())
+        notifyWidget()
     }
 
     override suspend fun deleteTaskById(id: Long) {
         cancelTaskReminder(id)
         taskDao.deleteTaskById(id)
+        notifyWidget()
     }
 
     override suspend fun toggleTaskCompleted(task: Task) {
@@ -106,6 +115,7 @@ class TaskRepositoryImpl(
             cancelTaskReminder(task.id)
             if (task.recurrence != Recurrence.NONE) spawnNextOccurrence(task)
         }
+        notifyWidget()
     }
 
     /** مهمة متكررة: عند الإنجاز ننشئ النسخة الجاية بموعد مستقبلي ونجدول تذكيرها. */
