@@ -5,63 +5,51 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dani.assistant.core.alarm.AlarmScheduler
 import com.dani.assistant.data.repository.TaskRepository
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.dani.assistant.domain.model.PriorityLevel
+import com.dani.assistant.domain.model.Task
+import com.dani.assistant.domain.model.TaskStatus
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-
-data class TaskItem(
-    val id: Int,
-    val title: String,
-    val description: String = "",
-    val priority: String = "Normal",
-    val dueDate: Long? = null,
-    val isCompleted: Boolean = false
-)
 
 class TasksViewModel(
     private val taskRepository: TaskRepository,
     private val alarmScheduler: AlarmScheduler
 ) : ViewModel() {
-    private val _tasks = MutableStateFlow<List<TaskItem>>(emptyList())
-    val tasks: StateFlow<List<TaskItem>> = _tasks
 
-    init { loadTasks() }
-
-    private fun loadTasks() {
-        viewModelScope.launch {
-            _tasks.value = taskRepository.getAllTasks()
-        }
-    }
+    val tasks: StateFlow<List<Task>> = taskRepository.getAllTasks()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun addTask(title: String, description: String, priority: String, dueDate: Long?) {
         viewModelScope.launch {
-            val task = TaskItem(
-                id = System.currentTimeMillis().toInt(),
-                title = title,
-                description = description,
-                priority = priority,
-                dueDate = dueDate,
-                isCompleted = false
-            )
-            taskRepository.addTask(task)
-            if (dueDate != null) {
-                alarmScheduler.scheduleAlarm(task.id, dueDate, title)
+            val priorityLevel = when (priority) {
+                "High" -> PriorityLevel.HIGH
+                "Low" -> PriorityLevel.LOW
+                else -> PriorityLevel.MEDIUM
             }
-            loadTasks()
+            
+            val newTask = Task(
+                title = title,
+                description = description.ifEmpty { null },
+                priority = priorityLevel,
+                dueDate = dueDate,
+                status = TaskStatus.NEW
+            )
+            
+            taskRepository.insertTask(newTask)
         }
     }
 
-    fun toggleTask(id: Int) {
+    fun toggleTask(task: Task) {
         viewModelScope.launch {
-            taskRepository.toggleTask(id)
-            loadTasks()
+            taskRepository.toggleTaskCompleted(task)
         }
     }
 
-    fun deleteTask(id: Int) {
+    fun deleteTask(task: Task) {
         viewModelScope.launch {
-            taskRepository.deleteTask(id)
-            loadTasks()
+            taskRepository.deleteTask(task)
         }
     }
 
