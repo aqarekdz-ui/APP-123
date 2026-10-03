@@ -1,6 +1,7 @@
 package com.dani.assistant.presentation.tasks
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dani.assistant.core.alarm.AlarmScheduler
 import com.dani.assistant.data.repository.TaskRepository
@@ -61,6 +62,20 @@ class TasksViewModel(
         viewModelScope.launch {
             taskRepository.deleteTask(id)
             loadTasks()
+        }
+    }
+
+    companion object {
+        fun provideFactory(
+            taskRepository: TaskRepository,
+            alarmScheduler: AlarmScheduler
+        ): ViewModelProvider.Factory {
+            return object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return TasksViewModel(taskRepository, alarmScheduler) as T
+                }
+            }
         }
     }
 }
