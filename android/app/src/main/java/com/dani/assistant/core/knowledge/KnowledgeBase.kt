@@ -177,5 +177,7 @@ object KnowledgeBase {
 
     fun getAll(ctx: Context): List<KnowledgeEntry> = load(ctx).sortedByDescending { it.createdAt }
 
+    fun clearAll(ctx: Context) = save(ctx, emptyList())
+
     fun remove(ctx: Context, id: Long) = save(ctx, load(ctx).filter { it.id != id })
 }

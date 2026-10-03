@@ -12,6 +12,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,14 +29,17 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun DashboardScreen(viewModel: TasksViewModel) {
+fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}) {
     val tasks by viewModel.tasks.collectAsState()
     val pending = tasks.filter { !it.isCompleted }
     val done = tasks.count { it.isCompleted }
     val urgent = pending.count { it.priority == PriorityLevel.URGENT_CRITICAL || it.priority == PriorityLevel.IMPORTANT }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("DANI", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("DANI", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            TextButton(onClick = onOpenSettings) { Text("⚙ الإعدادات") }
+        }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatCard("متبقية", pending.size.toString(), Modifier.weight(1f))
             StatCard("مهمة", urgent.toString(), Modifier.weight(1f))

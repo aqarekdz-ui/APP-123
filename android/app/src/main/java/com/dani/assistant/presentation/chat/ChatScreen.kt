@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import com.dani.assistant.DaniApplication
 import com.dani.assistant.core.ai.GeminiAI
 import com.dani.assistant.core.ai.ProviderSettings
+import com.dani.assistant.core.settings.AppSettings
 import androidx.compose.material3.AlertDialog
 import com.dani.assistant.core.ai.ParsedTask
 import com.dani.assistant.core.alarm.ScheduleResult
@@ -264,7 +265,7 @@ fun ChatScreen() {
                 val qKey = KnowledgeBase.keyOf(inputText)
                 val bypass = qKey.isNotEmpty() && qKey == lastLocalKey
                 lastLocalKey = null
-                val local = if (bypass) null else KnowledgeBase.findLocal(context, inputText)
+                val local = if (bypass || !AppSettings.localFirst(context)) null else KnowledgeBase.findLocal(context, inputText)
                 if (local != null) {
                     messages = messages + Message(local, false, mood = "محلي")
                     lastLocalKey = qKey
@@ -279,9 +280,9 @@ fun ChatScreen() {
                     ai.sendMessageStream(inputText, MemoryStore.getAll(context).takeLast(12) + (if (SecretStore.looksSensitive(inputText)) SecretStore.getAll(context) else emptyList())).collect { chunk -> sb.append(chunk); setReply(sb.toString()) }
                 } catch (e: Exception) { failed = true; if (sb.isEmpty()) setReply(GeminiAI.friendlyError(e)) }
                 if (sb.isEmpty()) setReply("...")
-                if (!failed && sb.isNotEmpty() && KnowledgeBase.cacheable(inputText, sb.toString())) KnowledgeBase.put(context, inputText, sb.toString())
+                if (AppSettings.autoLearn(context) && !failed && sb.isNotEmpty() && KnowledgeBase.cacheable(inputText, sb.toString())) KnowledgeBase.put(context, inputText, sb.toString())
                 val known = MemoryStore.getAll(context)
-                val (t, facts, secrets) = ai.analyze(inputText, known)
+                val (t, facts, secrets) = if (AppSettings.autoLearn(context)) ai.analyze(inputText, known) else Triple(null, emptyList<String>(), emptyList<String>())
                 if (t != null) suggestedTask = t
                 facts.forEach { MemoryStore.add(context, it) }
                 secrets.forEach { SecretStore.add(context, it) }

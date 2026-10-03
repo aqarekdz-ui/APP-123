@@ -1,0 +1,152 @@
+package com.dani.assistant.presentation.settings
+
+import android.content.Context
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dani.assistant.core.ai.ProviderSettings
+import com.dani.assistant.core.knowledge.KnowledgeBase
+import com.dani.assistant.core.settings.AppSettings
+
+@Composable
+fun SettingsScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    var autoLearn by remember { mutableStateOf(AppSettings.autoLearn(context)) }
+    var localFirst by remember { mutableStateOf(AppSettings.localFirst(context)) }
+    var groqKey by remember { mutableStateOf(ProviderSettings.groqKey(context)) }
+    var orKey by remember { mutableStateOf(ProviderSettings.openRouterKey(context)) }
+    var knowledgeCount by remember { mutableStateOf(KnowledgeBase.getAll(context).size) }
+    var confirmClearKnowledge by remember { mutableStateOf(false) }
+    var confirmClearChat by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("الإعدادات", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            TextButton(onClick = onBack) { Text("رجوع") }
+        }
+
+        // ---- التعلم ----
+        Text("التعلم", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        SettingSwitch(
+            title = "التعلم التلقائي",
+            desc = "يستخرج معلومات عنك من كلامك ويحفظ أجوبة الذكاء الاصطناعي في ملف المعرفة. إيقافه يوفّر طلبات من الحصة المجانية.",
+            checked = autoLearn
+        ) { autoLearn = it; AppSettings.setAutoLearn(context, it) }
+        SettingSwitch(
+            title = "المحلي أولاً",
+            desc = "يبحث في ملف المعرفة قبل ما يسأل الذكاء الاصطناعي، وهذا يوفّر الطلبات.",
+            checked = localFirst
+        ) { localFirst = it; AppSettings.setLocalFirst(context, it) }
+
+        // ---- مزودات AI ----
+        Text("مزودات الذكاء الاصطناعي المجانية", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(
+            "Gemini يخدم دايماً. المفاتيح التالية احتياط تلقائي إذا Gemini وصل الحد (بدون بطاقة بنكية).",
+            fontSize = 12.sp, color = MaterialTheme.colorScheme.outline
+        )
+        TextField(
+            value = groqKey, onValueChange = { groqKey = it },
+            label = { Text("Groq key (console.groq.com/keys)") },
+            visualTransformation = PasswordVisualTransformation(), singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        TextField(
+            value = orKey, onValueChange = { orKey = it },
+            label = { Text("OpenRouter key (openrouter.ai/keys)") },
+            visualTransformation = PasswordVisualTransformation(), singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Button(onClick = {
+            ProviderSettings.save(context, groqKey, orKey)
+            msg = "تم حفظ المفاتيح ✅"
+        }) { Text("حفظ المفاتيح") }
+        Text(
+            "الحالة: Gemini ✅ | Groq " + (if (groqKey.isNotBlank()) "✅" else "—") + " | OpenRouter " + (if (orKey.isNotBlank()) "✅" else "—"),
+            fontSize = 12.sp
+        )
+
+        // ---- البيانات ----
+        Text("البيانات", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("ملف المعرفة: " + knowledgeCount + " مدخل", fontSize = 13.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { confirmClearKnowledge = true }) { Text("مسح المعرفة") }
+            Button(onClick = { confirmClearChat = true }) { Text("مسح المحادثة") }
+        }
+        Text("للنسخ الاحتياطي (تصدير/استيراد) افتح تبويب الذاكرة.", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+
+        val m = msg
+        if (m != null) Text(m, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+    }
+
+    if (confirmClearKnowledge) {
+        AlertDialog(
+            onDismissRequest = { confirmClearKnowledge = false },
+            title = { Text("مسح ملف المعرفة؟") },
+            text = { Text("كل الأجوبة اللي تعلّمها DANI تتمسح نهائياً. المعلومات الشخصية والأسرار والمهام ما تتأثرش.") },
+            confirmButton = {
+                Button(onClick = {
+                    KnowledgeBase.clearAll(context)
+                    knowledgeCount = 0
+                    confirmClearKnowledge = false
+                    msg = "تم مسح المعرفة"
+                }) { Text("امسح") }
+            },
+            dismissButton = { TextButton(onClick = { confirmClearKnowledge = false }) { Text("إلغاء") } }
+        )
+    }
+
+    if (confirmClearChat) {
+        AlertDialog(
+            onDismissRequest = { confirmClearChat = false },
+            title = { Text("مسح المحادثة؟") },
+            text = { Text("كل رسائل الشات تتمسح. الذاكرة والمهام ما تتأثرش.") },
+            confirmButton = {
+                Button(onClick = {
+                    context.getSharedPreferences("chat", Context.MODE_PRIVATE).edit().clear().apply()
+                    confirmClearChat = false
+                    msg = "تم مسح المحادثة"
+                }) { Text("امسح") }
+            },
+            dismissButton = { TextButton(onClick = { confirmClearChat = false }) { Text("إلغاء") } }
+        )
+    }
+}
+
+@Composable
+private fun SettingSwitch(title: String, desc: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.Bold)
+            Text(desc, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+        }
+        Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
