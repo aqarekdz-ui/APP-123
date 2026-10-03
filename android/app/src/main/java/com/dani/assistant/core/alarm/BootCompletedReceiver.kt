@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.dani.assistant.DaniApplication
+import com.dani.assistant.core.digest.MorningDigest
 import com.dani.assistant.domain.model.Reminder
 import com.dani.assistant.domain.model.ReminderType
 import kotlinx.coroutines.CoroutineScope
@@ -15,6 +16,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == "android.intent.action.QUICKBOOT_POWERON") {
             val pendingResult = goAsync()
+            try { MorningDigest.schedule(context) } catch (e: Exception) { }
 
             CoroutineScope(Dispatchers.IO).launch {
                 try {

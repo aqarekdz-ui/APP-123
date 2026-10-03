@@ -1,6 +1,8 @@
 package com.dani.assistant.presentation.settings
 
+import android.app.TimePickerDialog
 import android.content.Context
+import com.dani.assistant.core.digest.MorningDigest
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +39,8 @@ fun SettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     var autoLearn by remember { mutableStateOf(AppSettings.autoLearn(context)) }
     var localFirst by remember { mutableStateOf(AppSettings.localFirst(context)) }
+    var digestOn by remember { mutableStateOf(AppSettings.digestEnabled(context)) }
+    var digestMin by remember { mutableStateOf(AppSettings.digestMinutes(context)) }
     var groqKey by remember { mutableStateOf(ProviderSettings.groqKey(context)) }
     var orKey by remember { mutableStateOf(ProviderSettings.openRouterKey(context)) }
     var knowledgeCount by remember { mutableStateOf(KnowledgeBase.getAll(context).size) }
@@ -65,6 +69,30 @@ fun SettingsScreen(onBack: () -> Unit) {
             desc = "يبحث في ملف المعرفة قبل ما يسأل الذكاء الاصطناعي، وهذا يوفّر الطلبات.",
             checked = localFirst
         ) { localFirst = it; AppSettings.setLocalFirst(context, it) }
+
+        // ---- الملخص الصباحي ----
+        Text("التنبيهات", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        SettingSwitch(
+            title = "ملخص صباحي يومي",
+            desc = "إشعار كل صباح بمهام اليوم والمتأخرة. ما يطلعش إذا ما عندكش مهام.",
+            checked = digestOn
+        ) {
+            digestOn = it
+            AppSettings.setDigestEnabled(context, it)
+            MorningDigest.schedule(context)
+        }
+        if (digestOn) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("الوقت: " + String.format("%02d:%02d", digestMin / 60, digestMin % 60), fontSize = 14.sp)
+                Button(onClick = {
+                    TimePickerDialog(context, { _, h, m ->
+                        digestMin = h * 60 + m
+                        AppSettings.setDigestMinutes(context, digestMin)
+                        MorningDigest.schedule(context)
+                    }, digestMin / 60, digestMin % 60, true).show()
+                }) { Text("تغيير") }
+            }
+        }
 
         // ---- مزودات AI ----
         Text("مزودات الذكاء الاصطناعي المجانية", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

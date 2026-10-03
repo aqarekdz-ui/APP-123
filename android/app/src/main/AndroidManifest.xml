@@ -67,6 +67,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- الملخص الصباحي اليومي -->
+        <receiver
+            android:name=".core.digest.MorningDigestReceiver"
+            android:exported="false" />
+
         <!-- ودجت المهام القادمة -->
         <receiver
             android:name=".widget.TaskWidgetProvider"

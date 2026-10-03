@@ -4,6 +4,7 @@ import android.app.Application
 import com.dani.assistant.core.alarm.AlarmScheduler
 import com.dani.assistant.core.alarm.AndroidAlarmScheduler
 import com.dani.assistant.core.alarm.NotificationHelper
+import com.dani.assistant.core.digest.MorningDigest
 import com.dani.assistant.core.database.DaniDatabase
 import com.dani.assistant.data.repository.TaskRepository
 import com.dani.assistant.data.repository.TaskRepositoryImpl
@@ -32,6 +33,9 @@ class DaniApplication : Application() {
 
         // Initialize notification channels at application startup
         NotificationHelper.createNotificationChannels(this)
+
+        // الملخص الصباحي اليومي
+        try { MorningDigest.schedule(this) } catch (e: Exception) { }
     }
 
     companion object {

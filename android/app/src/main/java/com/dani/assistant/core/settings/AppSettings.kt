@@ -14,6 +14,14 @@ object AppSettings {
     fun autoLearn(ctx: Context): Boolean = prefs(ctx).getBoolean(AUTO_LEARN, true)
     fun setAutoLearn(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean(AUTO_LEARN, v).apply()
 
+    /** الملخص الصباحي اليومي (إشعار بمهام اليوم). */
+    fun digestEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("digest", true)
+    fun setDigestEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("digest", v).apply()
+
+    /** وقت الملخص بالدقائق من منتصف الليل (الافتراضي 08:00). */
+    fun digestMinutes(ctx: Context): Int = prefs(ctx).getInt("digest_min", 8 * 60)
+    fun setDigestMinutes(ctx: Context, m: Int) = prefs(ctx).edit().putInt("digest_min", m).apply()
+
     /** البحث في الملف المحلي أولاً قبل سؤال الذكاء الاصطناعي. */
     fun localFirst(ctx: Context): Boolean = prefs(ctx).getBoolean(LOCAL_FIRST, true)
     fun setLocalFirst(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean(LOCAL_FIRST, v).apply()
