@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -66,7 +67,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-data class Message(val text: String, val isUser: Boolean, val timestamp: Long = System.currentTimeMillis(), val mood: String = "")
+data class Message(val text: String, val isUser: Boolean, val timestamp: Long = System.currentTimeMillis(), val mood: String = "", val isError: Boolean = false)
 
 private val commandTriggers = listOf(
     "ذكرني", "ذكرلي", "فكرني", "فكرلي", "ضيف مهمة", "اضف مهمة", "زيد مهمة", "سجل مهمة", "اضافة مهمة",
@@ -246,6 +247,7 @@ fun ChatScreen() {
     val ai = remember { GeminiAI() }
     val scope = rememberCoroutineScope()
     val prefs: SharedPreferences = context.getSharedPreferences("chat", Context.MODE_PRIVATE)
+    val listState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         val loaded = loadMessages(prefs)
@@ -254,6 +256,12 @@ fun ChatScreen() {
 
     LaunchedEffect(messages) {
         if (messages.isNotEmpty()) saveMessages(prefs, messages)
+    }
+
+    // نزول تلقائي لآخر رسالة (وأثناء البث)
+    LaunchedEffect(messages.size, messages.lastOrNull()?.text?.length, suggestedTask) {
+        val n = (if (messages.isEmpty()) 1 else 0) + messages.size + (if (suggestedTask != null) 1 else 0)
+        if (n > 0) listState.scrollToItem(n - 1, 100000)
     }
 
     // محرك Google TTS أولاً (سامسونغ الافتراضي ما فيهش عربي فيقرا بالإنجليزية)، وإذا مش موجود المحرك الافتراضي
@@ -353,68 +361,8 @@ fun ChatScreen() {
         return Pair(mood, task)
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-            Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("المزاج:", style = MaterialTheme.typography.bodyMedium)
-                Text(moodAr(currentMood), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
-        }
-        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (messages.isEmpty()) {
-                item {
-                    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("مرحبا! أنا DANI", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("اضغط على الميكروفون باش تتكلم")
-                            Text("اضغط على السماعة باش تسمع الرد")
-                            Text("المحادثة تتحفظ تلقائياً")
-                            Text("نقترح عليك مهام من كلامك")
-                        }
-                    }
-                }
-            }
-            items(messages) { msg ->
-                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = if (msg.isUser) Alignment.End else Alignment.Start) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (msg.isUser) Arrangement.End else Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
-                        if (!msg.isUser) {
-                            Button(onClick = { speakMsg(msg.text) }, modifier = Modifier.padding(end = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("speak", fontSize = 14.sp) }
-                        }
-                        Surface(color = if (msg.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp)) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(text = msg.text, color = if (msg.isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
-                                if (msg.mood.isNotEmpty()) { Spacer(modifier = Modifier.height(4.dp)); Text(msg.mood, fontSize = 10.sp, color = MaterialTheme.colorScheme.outline) }
-                            }
-                        }
-                    }
-                    Text(text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(msg.timestamp)), fontSize = 10.sp, color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
-                }
-            }
-            if (suggestedTask != null) {
-                item {
-                    Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
-                        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) { Text("اقتراح مهمة:", fontWeight = FontWeight.Bold, fontSize = 12.sp); Text(suggestedTask!!, fontSize = 14.sp, modifier = Modifier.padding(end = 8.dp)) }
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                TextButton(onClick = { suggestedTask = null }) { Text("تجاهل") }
-                                Button(onClick = {
-                                    val t = suggestedTask
-                                    if (t != null) scope.launch { DaniApplication.instance.taskRepository.insertTask(Task(title = t)) }
-                                    suggestedTask = null
-                                }) { Text("إضافة") }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = { val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-DZ") }; speechLauncher.launch(intent) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("mic", fontSize = 18.sp) }
-            TextField(value = userInput, onValueChange = { userInput = it }, modifier = Modifier.weight(1f), placeholder = { Text("اكتب أو تكلّم...") }, shape = RoundedCornerShape(24.dp))
-            if (sending) {
-                Button(onClick = { sendJob?.cancel() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(24.dp)) { Text("⏹ وقف") }
-            } else Button(onClick = { if (userInput.isNotBlank()) { val inputText = userInput; if (inputText.startsWith("تذكر") || inputText.lowercase().startsWith("remember")) { val fact = inputText.substringAfter(" ", "").trim(); if (fact.isNotEmpty()) { if (SecretStore.looksSensitive(fact)) SecretStore.add(context, fact) else MemoryStore.add(context, fact) } }; val result = analyzeMessage(inputText); currentMood = result.first; suggestedTask = result.second; val msg = Message(inputText, true, mood = result.first); messages = messages + msg; userInput = ""; sending = true; sendJob = scope.launch { try {
+    fun doSend(inputText: String, addUserBubble: Boolean) {
+        if (inputText.startsWith("تذكر") || inputText.lowercase().startsWith("remember")) { val fact = inputText.substringAfter(" ", "").trim(); if (fact.isNotEmpty()) { if (SecretStore.looksSensitive(fact)) SecretStore.add(context, fact) else MemoryStore.add(context, fact) } }; val result = analyzeMessage(inputText); currentMood = result.first; suggestedTask = result.second; if (addUserBubble) messages = messages + Message(inputText, true, mood = result.first); sending = true; sendJob = scope.launch { try {
                 if (isAdSiteRequest(inputText)) {
                     val pIdx = messages.size
                     messages = messages + Message("🔎 نفتح Ouedkniss ونقرا الإعلانات واحد واحد... (تدوم دقيقة ولا زيادة)", false, mood = "إعلانات")
@@ -455,7 +403,7 @@ fun ChatScreen() {
                 }
                 val idx = messages.size
                 messages = messages + Message("", false)
-                fun setReply(t: String) { if (idx < messages.size) messages = messages.toMutableList().also { it[idx] = Message(t, false) } }
+                fun setReply(t: String, err: Boolean = false) { if (idx < messages.size) messages = messages.toMutableList().also { it[idx] = Message(t, false, isError = err) } }
                 val sb = StringBuilder()
                 var failed = false
                 var promptText = inputText
@@ -477,7 +425,7 @@ fun ChatScreen() {
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     setReply(if (sb.isEmpty()) "⏹ تم الإيقاف" else sb.toString() + "\n⏹")
                     throw e
-                } catch (e: Exception) { failed = true; if (sb.isEmpty()) setReply(GeminiAI.friendlyError(e)) }
+                } catch (e: Exception) { failed = true; if (sb.isEmpty()) setReply(GeminiAI.friendlyError(e), true) }
                 if (!failed && sources.isNotEmpty() && sb.isNotEmpty()) { sb.append("\n\n🔗 المصادر:\n").append(sources); setReply(sb.toString()) }
                 if (sb.isEmpty()) setReply("...")
                 if (AppSettings.autoLearn(context) && searchQ == null && !failed && sb.isNotEmpty() && KnowledgeBase.cacheable(inputText, sb.toString())) KnowledgeBase.put(context, inputText, sb.toString())
@@ -488,7 +436,82 @@ fun ChatScreen() {
                 secrets.forEach { SecretStore.add(context, it) }
                 val all = MemoryStore.getAll(context)
                 if (all.size > 40) ai.consolidate(all)?.let { MemoryStore.replaceAll(context, it) }
-            } finally { sending = false } } } }, shape = RoundedCornerShape(24.dp)) { Text("إرسال") }
+            } finally { sending = false } }
+    }
+
+    val retry: () -> Unit = {
+        if (!sending && messages.lastOrNull()?.isError == true) {
+            val lastUser = messages.lastOrNull { it.isUser }?.text
+            if (lastUser != null) {
+                messages = messages.dropLast(1)
+                doSend(lastUser, false)
+            }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+            Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("المزاج:", style = MaterialTheme.typography.bodyMedium)
+                Text(moodAr(currentMood), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        }
+        LazyColumn(state = listState, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (messages.isEmpty()) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("مرحبا! أنا DANI", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("اضغط على الميكروفون باش تتكلم")
+                            Text("اضغط على السماعة باش تسمع الرد")
+                            Text("المحادثة تتحفظ تلقائياً")
+                            Text("نقترح عليك مهام من كلامك")
+                        }
+                    }
+                }
+            }
+            items(messages) { msg ->
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = if (msg.isUser) Alignment.End else Alignment.Start) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (msg.isUser) Arrangement.End else Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
+                        if (!msg.isUser) {
+                            Button(onClick = { speakMsg(msg.text) }, modifier = Modifier.padding(end = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("speak", fontSize = 14.sp) }
+                        }
+                        Surface(color = if (msg.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp)) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(text = msg.text, color = if (msg.isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (msg.mood.isNotEmpty()) { Spacer(modifier = Modifier.height(4.dp)); Text(msg.mood, fontSize = 10.sp, color = MaterialTheme.colorScheme.outline) }
+                            }
+                        }
+                    }
+                    Text(text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(msg.timestamp)), fontSize = 10.sp, color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                    if (msg.isError && msg === messages.lastOrNull()) TextButton(onClick = retry) { Text("🔄 إعادة المحاولة") }
+                }
+            }
+            if (suggestedTask != null) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) { Text("اقتراح مهمة:", fontWeight = FontWeight.Bold, fontSize = 12.sp); Text(suggestedTask!!, fontSize = 14.sp, modifier = Modifier.padding(end = 8.dp)) }
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                TextButton(onClick = { suggestedTask = null }) { Text("تجاهل") }
+                                Button(onClick = {
+                                    val t = suggestedTask
+                                    if (t != null) scope.launch { DaniApplication.instance.taskRepository.insertTask(Task(title = t)) }
+                                    suggestedTask = null
+                                }) { Text("إضافة") }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-DZ") }; speechLauncher.launch(intent) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("mic", fontSize = 18.sp) }
+            TextField(value = userInput, onValueChange = { userInput = it }, modifier = Modifier.weight(1f), placeholder = { Text("اكتب أو تكلّم...") }, shape = RoundedCornerShape(24.dp))
+            if (sending) {
+                Button(onClick = { sendJob?.cancel() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(24.dp)) { Text("⏹ وقف") }
+            } else Button(onClick = { if (userInput.isNotBlank()) { val t = userInput; userInput = ""; doSend(t, true) } }, shape = RoundedCornerShape(24.dp)) { Text("إرسال") }
         }
         Row(modifier = Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = { messages = emptyList(); prefs.edit().clear().apply() }) { Text("مسح المحادثة", fontSize = 12.sp) }

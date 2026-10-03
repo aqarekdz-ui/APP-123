@@ -244,8 +244,32 @@ class GeminiAI {
                 "location" in t -> "⚠️ المزود ما يخدمش في منطقتك دالوقت."
                 "unknownhost" in t || "unable to resolve" in t || "timeout" in t || "network" in t || "connect" in t ->
                     "⚠️ ما فيش انترنت."
-                else -> "Error"
+                " 404" in t || "not found" in t || "no longer" in t || "deprecated" in t ->
+                    "⚠️ النموذج غير متوفر دالوقت، عاود بعد شوية (ولا استعمل زر اختبار الاتصال في الإعدادات)."
+                else -> "⚠️ خطأ من الذكاء الاصطناعي: " + shortErr(e)
             }
+        }
+
+        private fun shortErr(e: Throwable): String =
+            (e.message ?: e.javaClass.simpleName).replace(Regex("\\s+"), " ").take(140)
+
+        /** اختبار الاتصال: يجرب النماذج بالترتيب ويوقف عند أول نجاح، ويرجع تقريراً بالعربية. */
+        suspend fun testAll(): String {
+            val sb = StringBuilder()
+            for (b in backends()) {
+                val t0 = System.currentTimeMillis()
+                try {
+                    run(b, listOf(Turn("user", "قل: جاهز")))
+                    sb.append("✅ يشتغل: ").append(b.id).append(" (").append(System.currentTimeMillis() - t0).append(" ms)")
+                    return sb.toString()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    sb.append("❌ ").append(b.id).append(": ").append(shortErr(e)).append('\n')
+                }
+            }
+            sb.append("\nما اشتغل حتى نموذج. تأكد من الإنترنت ومن المفاتيح.")
+            return sb.toString()
         }
     }
 

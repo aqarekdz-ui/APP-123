@@ -35,6 +35,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dani.assistant.core.ai.ProviderSettings
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import com.dani.assistant.core.ai.GeminiAI
 import com.dani.assistant.core.knowledge.KnowledgeBase
 import com.dani.assistant.core.security.AppLock
 import com.dani.assistant.core.settings.AppSettings
@@ -59,6 +62,9 @@ fun SettingsScreen(onBack: () -> Unit) {
     var watchEx by remember { mutableStateOf(WatchSettings.exclude(context)) }
     var watchInt by remember { mutableStateOf(WatchSettings.intervalMin(context)) }
     var watchLast by remember { mutableStateOf(WatchSettings.lastSummary(context)) }
+    var testing by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
@@ -228,6 +234,18 @@ fun SettingsScreen(onBack: () -> Unit) {
             "الحالة: Gemini ✅ | Groq " + (if (groqKey.isNotBlank()) "✅" else "—") + " | OpenRouter " + (if (orKey.isNotBlank()) "✅" else "—"),
             fontSize = 12.sp
         )
+
+        Button(enabled = !testing, onClick = {
+            testing = true
+            testResult = "⏳ جاري الاختبار..."
+            scope.launch {
+                testResult = try { GeminiAI.testAll() }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { "❌ " + (e.message ?: "خطأ") }
+                testing = false
+            }
+        }) { Text("🔌 اختبار الاتصال") }
+        testResult?.let { Text(it, fontSize = 12.sp) }
 
         // ---- البيانات ----
         Text("البيانات", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

@@ -1,9 +1,11 @@
 package com.dani.assistant
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +23,11 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import com.dani.assistant.core.security.AppLock
 import com.dani.assistant.core.security.LockScreen
 import com.dani.assistant.presentation.main.MainScreen
+import com.dani.assistant.domain.model.Task
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : FragmentActivity() {
     private var locked by mutableStateOf(false)
@@ -36,6 +43,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        handleShare(intent)
 
         locked = AppLock.shouldLock(this) && !sessionUnlocked
 
@@ -73,6 +81,26 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+        }
+    }
+
+    /** مشاركة نص/رابط من تطبيق آخر إلى DANI: تتحول لمهمة (العنوان + النص الكامل في الوصف). */
+    private fun handleShare(i: Intent?) {
+        if (i == null || i.action != Intent.ACTION_SEND || i.type?.startsWith("text/") != true) return
+        val text = i.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty()
+        val subject = i.getStringExtra(Intent.EXTRA_SUBJECT)?.trim().orEmpty()
+        i.action = null
+        if (text.isEmpty() && subject.isEmpty()) return
+        val firstLine = text.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+        val title = (if (subject.isNotEmpty()) subject else firstLine).take(80)
+        val desc = if (text.isNotEmpty() && (subject.isNotEmpty() || text.length > 80 || text.contains("\n"))) text else null
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                DaniApplication.instance.taskRepository.insertTask(Task(title = title, description = desc))
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "✅ زدتها للمهام: " + title.take(40), Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) { }
         }
     }
 
