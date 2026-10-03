@@ -46,6 +46,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dani.assistant.DaniApplication
 import com.dani.assistant.core.ai.GeminiAI
+import com.dani.assistant.core.ai.ParsedTask
+import com.dani.assistant.core.alarm.ScheduleResult
+import com.dani.assistant.domain.model.Recurrence
+import com.dani.assistant.domain.model.ReminderType
 import com.dani.assistant.core.knowledge.KnowledgeBase
 import com.dani.assistant.core.memory.MemoryStore
 import com.dani.assistant.core.memory.SecretStore
@@ -56,6 +60,40 @@ import java.util.Date
 import java.util.Locale
 
 data class Message(val text: String, val isUser: Boolean, val timestamp: Long = System.currentTimeMillis(), val mood: String = "")
+
+private val commandTriggers = listOf(
+    "ذكرني", "ذكرلي", "فكرني", "فكرلي", "ضيف مهمة", "اضف مهمة", "زيد مهمة", "سجل مهمة", "اضافة مهمة",
+    "ضيف تذكير", "زيد تذكير", "remind me", "rappelle moi", "rappelle-moi", "add task"
+)
+
+private fun looksLikeTaskCommand(text: String): Boolean {
+    val n = text.lowercase()
+        .replace(Regex("[\\u064B-\\u0652\\u0640]"), "")
+        .replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
+        .replace("ى", "ي")
+    return commandTriggers.any { n.contains(it) }
+}
+
+/** ينشئ المهمة والتذكير مباشرة، ويرجع نص التأكيد. */
+private suspend fun createTaskFromCommand(cmd: ParsedTask): String {
+    val repo = DaniApplication.instance.taskRepository
+    val id = repo.insertTask(
+        Task(title = cmd.title, priority = cmd.priority, dueDate = cmd.dueDate, recurrence = cmd.recurrence)
+    )
+    val sb = StringBuilder("✅ زدت المهمة: ").append(cmd.title)
+    val due = cmd.dueDate
+    if (due != null) {
+        sb.append("\n⏰ ").append(SimpleDateFormat("EEEE dd/MM HH:mm", Locale.getDefault()).format(Date(due)))
+        if (cmd.recurrence != Recurrence.NONE) sb.append("\n🔁 ").append(cmd.recurrence.arabic)
+        val r = repo.setTaskReminder(id, cmd.title, due, ReminderType.NOTIFICATION)
+        if (r is ScheduleResult.ExactAlarmPermissionRequired) {
+            sb.append("\n⚠️ فعّل إذن المنبهات من تبويب المهام باش يرن التذكير في وقته")
+        }
+    } else {
+        sb.append("\n(بدون وقت تذكير)")
+    }
+    return sb.toString()
+}
 
 private const val KEY_JSON = "msg_json"
 private const val KEY_LEGACY = "msg"
@@ -207,6 +245,17 @@ fun ChatScreen() {
             Button(onClick = { val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-DZ") }; speechLauncher.launch(intent) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("mic", fontSize = 18.sp) }
             TextField(value = userInput, onValueChange = { userInput = it }, modifier = Modifier.weight(1f), placeholder = { Text("Type or speak...") }, shape = RoundedCornerShape(24.dp))
             Button(onClick = { if (userInput.isNotBlank()) { val inputText = userInput; if (inputText.startsWith("تذكر") || inputText.lowercase().startsWith("remember")) { val fact = inputText.substringAfter(" ", "").trim(); if (fact.isNotEmpty()) { if (SecretStore.looksSensitive(fact)) SecretStore.add(context, fact) else MemoryStore.add(context, fact) } }; val result = analyzeMessage(inputText); currentMood = result.first; suggestedTask = result.second; val msg = Message(inputText, true, mood = result.first); messages = messages + msg; userInput = ""; scope.launch {
+                if (looksLikeTaskCommand(inputText)) {
+                    val cmd = ai.parseTaskCommand(inputText)
+                    if (cmd != null) {
+                        val reply = try { createTaskFromCommand(cmd) } catch (e: Exception) { null }
+                        if (reply != null) {
+                            suggestedTask = null
+                            messages = messages + Message(reply, false, mood = "مهمة")
+                            return@launch
+                        }
+                    }
+                }
                 val qKey = KnowledgeBase.keyOf(inputText)
                 val bypass = qKey.isNotEmpty() && qKey == lastLocalKey
                 lastLocalKey = null
