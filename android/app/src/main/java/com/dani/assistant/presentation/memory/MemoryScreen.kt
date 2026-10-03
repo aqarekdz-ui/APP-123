@@ -26,12 +26,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dani.assistant.core.memory.MemoryStore
+import com.dani.assistant.core.memory.SecretStore
 
 @Composable
 fun MemoryScreen() {
     val context = LocalContext.current
     var facts by remember { mutableStateOf(MemoryStore.getAll(context)) }
     var input by remember { mutableStateOf("") }
+    var secrets by remember { mutableStateOf(SecretStore.getAll(context)) }
+    var revealed by remember { mutableStateOf(setOf<String>()) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("الذاكرة", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -46,11 +49,24 @@ fun MemoryScreen() {
             )
             Button(onClick = {
                 if (input.isNotBlank()) {
-                    MemoryStore.add(context, input)
+                    if (SecretStore.looksSensitive(input)) SecretStore.add(context, input) else MemoryStore.add(context, input)
                     facts = MemoryStore.getAll(context)
+                    secrets = SecretStore.getAll(context)
                     input = ""
                 }
             }) { Text("حفظ") }
+        }
+        if (secrets.isNotEmpty()) {
+            Text("معلومات سرية (مشفّرة)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            secrets.forEach { sec ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.padding(start = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (revealed.contains(sec)) sec else "••••••••", modifier = Modifier.weight(1f).padding(vertical = 8.dp))
+                        TextButton(onClick = { revealed = if (revealed.contains(sec)) revealed - sec else revealed + sec }) { Text(if (revealed.contains(sec)) "إخفاء" else "إظهار") }
+                        TextButton(onClick = { SecretStore.remove(context, sec); secrets = SecretStore.getAll(context) }) { Text("حذف") }
+                    }
+                }
+            }
         }
         if (facts.isEmpty()) {
             Text("لا توجد معلومات محفوظة بعد.", color = MaterialTheme.colorScheme.outline)
