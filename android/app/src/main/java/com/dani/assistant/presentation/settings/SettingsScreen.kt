@@ -106,6 +106,21 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
         }
 
+        // ---- الصوت الجزائري ----
+        Text("الصوت الجزائري (Azure)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("صوت الهاتف يقرا بالعربية الفصحى فقط. باش يقرا بلهجة جزائرية (ar-DZ) دير حساب مجاني في Azure ← Speech ← Keys وحط المفتاح والمنطقة هنا. فارغ = صوت الهاتف.", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+        var azKey by remember { mutableStateOf(com.dani.assistant.core.tts.AzureTts.key(context)) }
+        var azRegion by remember { mutableStateOf(com.dani.assistant.core.tts.AzureTts.region(context)) }
+        var azVoice by remember { mutableStateOf(com.dani.assistant.core.tts.AzureTts.voice(context)) }
+        androidx.compose.material3.OutlinedTextField(value = azKey, onValueChange = { azKey = it; com.dani.assistant.core.tts.AzureTts.setKey(context, it) }, label = { Text("Azure Speech key") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        androidx.compose.material3.OutlinedTextField(value = azRegion, onValueChange = { azRegion = it; com.dani.assistant.core.tts.AzureTts.setRegion(context, it) }, label = { Text("المنطقة (مثلا francecentral)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("ar-DZ-AminaNeural" to "آمينة (امرأة)", "ar-DZ-IsmaelNeural" to "إسماعيل (رجل)").forEach { (v, label) ->
+                val pick = { azVoice = v; com.dani.assistant.core.tts.AzureTts.setVoice(context, v) }
+                if (azVoice == v) Button(onClick = pick) { Text(label) } else OutlinedButton(onClick = pick) { Text(label) }
+            }
+        }
+
         // ---- مراقب الإعلانات ----
         Text("مراقب الإعلانات (Ouedkniss)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         SettingSwitch(

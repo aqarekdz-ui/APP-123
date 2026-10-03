@@ -273,10 +273,10 @@ fun ChatScreen() {
             ttsArabic = ok != null
         }
     }
-    DisposableEffect(tts) { onDispose { tts.stop(); tts.shutdown() } }
+    DisposableEffect(tts) { onDispose { tts.stop(); tts.shutdown(); com.dani.assistant.core.tts.AzureTts.stop() } }
 
     // قراءة الرسالة: اللغة تتحدد حسب الحروف (عربي → صوت عربي، لاتيني → فرنسي) ويتحط الصوت صراحةً قبل كل قراءة
-    val speakMsg: (String) -> Unit = speak@{ raw ->
+    val speakLocal: (String) -> Unit = speak@{ raw ->
         val clean = raw.replace(Regex("[\\p{So}\\p{Cs}\\uFE0F\\u200D*#_`]"), "").trim()
         if (clean.isEmpty()) return@speak
         val arCount = clean.count { it in '\u0600'..'\u06FF' }
@@ -310,6 +310,21 @@ fun ChatScreen() {
         if (rc != TextToSpeech.SUCCESS) android.widget.Toast.makeText(context, "فشل التشغيل (محرك الصوت رفض)", android.widget.Toast.LENGTH_SHORT).show()
         val voiceName = try { tts.voice?.name } catch (e: Exception) { null } ?: tts.language.toString()
         android.widget.Toast.makeText(context, "🔊 " + (if (ttsFallback) "محرك النظام" else "Google TTS") + " • " + voiceName, android.widget.Toast.LENGTH_SHORT).show()
+    }
+
+    // الأولوية لصوت Azure الجزائري إذا المفتاح موجود (للنص العربي)، وإلا/إذا فشل: صوت الهاتف
+    val speakMsg: (String) -> Unit = { raw ->
+        val clean = raw.replace(Regex("[\\p{So}\\p{Cs}\\uFE0F\\u200D*#_`]"), "").trim()
+        val isAr = clean.count { it in '\u0600'..'\u06FF' } >= clean.count { it in 'A'..'Z' || it in 'a'..'z' }
+        if (clean.isNotEmpty() && isAr && com.dani.assistant.core.tts.AzureTts.enabled(context)) {
+            scope.launch {
+                val err = com.dani.assistant.core.tts.AzureTts.speak(context, clean)
+                if (err != null) {
+                    android.widget.Toast.makeText(context, "Azure: " + err + " — نرجع لصوت الهاتف", android.widget.Toast.LENGTH_LONG).show()
+                    speakLocal(raw)
+                }
+            }
+        } else speakLocal(raw)
     }
 
     val speechLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
