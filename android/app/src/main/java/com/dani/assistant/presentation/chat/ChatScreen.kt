@@ -137,6 +137,47 @@ private fun loadMessages(prefs: SharedPreferences): List<Message> {
     return emptyList()
 }
 
+// ---- محادثات متعددة: المحادثة الحالية تبقى في prefs "chat"، والقديمة تتأرشف في "chat_archive" ----
+private const val ARCH_PREFS = "chat_archive"
+private const val ARCH_KEY = "convs"
+private const val ARCH_MAX = 20
+
+private data class ArchivedChat(val id: Long, val title: String, val msgs: List<Message>)
+
+private fun chatTitle(msgs: List<Message>): String {
+    val t = msgs.firstOrNull { it.isUser }?.text?.trim().orEmpty()
+    return if (t.isEmpty()) "محادثة" else t.take(30)
+}
+
+private fun loadArchive(ctx: Context): MutableList<ArchivedChat> {
+    val json = ctx.getSharedPreferences(ARCH_PREFS, Context.MODE_PRIVATE).getString(ARCH_KEY, null)
+    val out = mutableListOf<ArchivedChat>()
+    if (json.isNullOrEmpty()) return out
+    try {
+        val arr = JSONArray(json)
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            val ma = o.getJSONArray("msgs")
+            val msgs = (0 until ma.length()).map {
+                val m = ma.getJSONObject(it)
+                Message(m.optString("t"), m.optBoolean("u"), m.optLong("ts", System.currentTimeMillis()), m.optString("m"))
+            }
+            out.add(ArchivedChat(o.optLong("id"), o.optString("title"), msgs))
+        }
+    } catch (e: Exception) { }
+    return out
+}
+
+private fun saveArchive(ctx: Context, list: List<ArchivedChat>) {
+    val arr = JSONArray()
+    list.take(ARCH_MAX).forEach { c ->
+        val ma = JSONArray()
+        c.msgs.forEach { ma.put(JSONObject().put("t", it.text).put("u", it.isUser).put("ts", it.timestamp).put("m", it.mood)) }
+        arr.put(JSONObject().put("id", c.id).put("title", c.title).put("msgs", ma))
+    }
+    ctx.getSharedPreferences(ARCH_PREFS, Context.MODE_PRIVATE).edit().putString(ARCH_KEY, arr.toString()).apply()
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen() {
@@ -149,6 +190,8 @@ fun ChatScreen() {
     var showProviders by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
     var sendJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var showConvs by remember { mutableStateOf(false) }
+    var convs by remember { mutableStateOf(listOf<ArchivedChat>()) }
     var groqKeyInput by remember { mutableStateOf("") }
     var orKeyInput by remember { mutableStateOf("") }
     val ai = remember { GeminiAI() }
@@ -298,11 +341,51 @@ fun ChatScreen() {
         }
         Row(modifier = Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = { messages = emptyList(); prefs.edit().clear().apply() }) { Text("مسح المحادثة", fontSize = 12.sp) }
+            TextButton(enabled = !sending && messages.isNotEmpty(), onClick = {
+                val l = loadArchive(context)
+                l.add(0, ArchivedChat(System.currentTimeMillis(), chatTitle(messages), messages))
+                saveArchive(context, l)
+                messages = emptyList(); suggestedTask = null
+                prefs.edit().clear().apply()
+            }) { Text("➕ جديدة", fontSize = 12.sp) }
+            TextButton(enabled = !sending, onClick = { convs = loadArchive(context); showConvs = true }) { Text("🗂 المحادثات", fontSize = 12.sp) }
             TextButton(onClick = {
                 groqKeyInput = ProviderSettings.groqKey(context)
                 orKeyInput = ProviderSettings.openRouterKey(context)
                 showProviders = true
             }) { Text("⚙ مزودات AI", fontSize = 12.sp) }
+        }
+        if (showConvs) {
+            AlertDialog(
+                onDismissRequest = { showConvs = false },
+                title = { Text("المحادثات السابقة") },
+                text = {
+                    if (convs.isEmpty()) Text("ما كاين حتى محادثة محفوظة.", fontSize = 13.sp)
+                    else LazyColumn(modifier = Modifier.height(280.dp)) {
+                        items(convs) { c ->
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                TextButton(modifier = Modifier.weight(1f), onClick = {
+                                    val l = loadArchive(context)
+                                    val chosen = l.firstOrNull { it.id == c.id }
+                                    if (chosen != null) {
+                                        l.remove(chosen)
+                                        if (messages.isNotEmpty()) l.add(0, ArchivedChat(System.currentTimeMillis(), chatTitle(messages), messages))
+                                        saveArchive(context, l)
+                                        messages = chosen.msgs; suggestedTask = null
+                                    }
+                                    showConvs = false
+                                }) { Text(c.title + " (" + c.msgs.size + ")", fontSize = 13.sp) }
+                                TextButton(onClick = {
+                                    val l = loadArchive(context).filter { it.id != c.id }
+                                    saveArchive(context, l)
+                                    convs = l
+                                }) { Text("🗑") }
+                            }
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { showConvs = false }) { Text("إغلاق") } }
+            )
         }
         if (showProviders) {
             AlertDialog(
