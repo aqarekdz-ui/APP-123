@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dani.assistant.DaniApplication
 import com.dani.assistant.core.ai.GeminiAI
+import com.dani.assistant.core.knowledge.KnowledgeBase
 import com.dani.assistant.core.memory.MemoryStore
 import com.dani.assistant.core.memory.SecretStore
 import com.dani.assistant.domain.model.Task
@@ -62,6 +63,7 @@ fun ChatScreen() {
     var userInput by remember { mutableStateOf("") }
     var suggestedTask by remember { mutableStateOf<String?>(null) }
     var currentMood by remember { mutableStateOf("Neutral") }
+    var lastLocalKey by remember { mutableStateOf<String?>(null) }
     val ai = remember { GeminiAI() }
     val scope = rememberCoroutineScope()
     val prefs: SharedPreferences = context.getSharedPreferences("chat", Context.MODE_PRIVATE)
@@ -178,14 +180,25 @@ fun ChatScreen() {
             Button(onClick = { val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-DZ") }; speechLauncher.launch(intent) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("mic", fontSize = 18.sp) }
             TextField(value = userInput, onValueChange = { userInput = it }, modifier = Modifier.weight(1f), placeholder = { Text("Type or speak...") }, shape = RoundedCornerShape(24.dp))
             Button(onClick = { if (userInput.isNotBlank()) { val inputText = userInput; if (inputText.startsWith("تذكر") || inputText.lowercase().startsWith("remember")) { val fact = inputText.substringAfter(" ", "").trim(); if (fact.isNotEmpty()) { if (SecretStore.looksSensitive(fact)) SecretStore.add(context, fact) else MemoryStore.add(context, fact) } }; val result = analyzeMessage(inputText); currentMood = result.first; suggestedTask = result.second; val msg = Message(inputText, true, mood = result.first); messages = messages + msg; userInput = ""; scope.launch {
+                val qKey = KnowledgeBase.keyOf(inputText)
+                val bypass = qKey.isNotEmpty() && qKey == lastLocalKey
+                lastLocalKey = null
+                val local = if (bypass) null else KnowledgeBase.findLocal(context, inputText)
+                if (local != null) {
+                    messages = messages + Message(local, false, mood = "محلي")
+                    lastLocalKey = qKey
+                    return@launch
+                }
                 val idx = messages.size
                 messages = messages + Message("", false)
                 fun setReply(t: String) { if (idx < messages.size) messages = messages.toMutableList().also { it[idx] = Message(t, false) } }
                 val sb = StringBuilder()
+                var failed = false
                 try {
                     ai.sendMessageStream(inputText, MemoryStore.getAll(context).takeLast(12) + (if (SecretStore.looksSensitive(inputText)) SecretStore.getAll(context) else emptyList())).collect { chunk -> sb.append(chunk); setReply(sb.toString()) }
-                } catch (e: Exception) { if (sb.isEmpty()) setReply("Error") }
+                } catch (e: Exception) { failed = true; if (sb.isEmpty()) setReply("Error") }
                 if (sb.isEmpty()) setReply("...")
+                if (!failed && sb.isNotEmpty() && KnowledgeBase.cacheable(inputText, sb.toString())) KnowledgeBase.put(context, inputText, sb.toString())
                 val known = MemoryStore.getAll(context)
                 val (t, facts, secrets) = ai.analyze(inputText, known)
                 if (t != null) suggestedTask = t
