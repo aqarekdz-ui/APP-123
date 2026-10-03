@@ -10,6 +10,7 @@ import com.dani.assistant.DaniApplication
 import com.dani.assistant.presentation.placeholder.PlaceholderScreen
 import com.dani.assistant.presentation.calendar.CalendarScreen
 import com.dani.assistant.presentation.chat.ChatScreen
+import com.dani.assistant.presentation.memory.MemoryScreen
 import com.dani.assistant.presentation.dashboard.DashboardScreen
 import com.dani.assistant.presentation.tasks.TasksScreen
 import com.dani.assistant.presentation.tasks.TasksViewModel
@@ -55,7 +56,7 @@ fun DaniNavHost(
             CalendarScreen(viewModel = viewModel)
         }
         composable(Screen.Memory.route) {
-            PlaceholderScreen(title = Screen.Memory.title)
+            MemoryScreen()
         }
         composable(Screen.Dani.route) {
             ChatScreen()
