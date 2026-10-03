@@ -36,12 +36,7 @@ fun TasksScreen(viewModel: TasksViewModel) {
 
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             val filteredTasks = if (filterPriority == "All") tasks else tasks.filter { 
-                val pName = when(it.priority) {
-                    PriorityLevel.HIGH -> "High"
-                    PriorityLevel.LOW -> "Low"
-                    else -> "Medium"
-                }
-                pName == filterPriority 
+                priorityLabel(it.priority) == filterPriority
             }
             items(filteredTasks) { task ->
                 TaskCard(task = task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) })
@@ -57,18 +52,20 @@ fun TasksScreen(viewModel: TasksViewModel) {
     }
 }
 
+private fun priorityLabel(p: PriorityLevel): String = when (p) {
+    PriorityLevel.URGENT_CRITICAL, PriorityLevel.IMPORTANT -> "High"
+    PriorityLevel.LOW, PriorityLevel.SOMEDAY -> "Low"
+    PriorityLevel.MEDIUM -> "Medium"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
-    val priorityColor = when (task.priority) {
-        PriorityLevel.HIGH -> MaterialTheme.colorScheme.error
-        PriorityLevel.LOW -> MaterialTheme.colorScheme.primary
+    val priorityName = priorityLabel(task.priority)
+    val priorityColor = when (priorityName) {
+        "High" -> MaterialTheme.colorScheme.error
+        "Low" -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.secondary
-    }
-    
-    val priorityName = when (task.priority) {
-        PriorityLevel.HIGH -> "High"
-        PriorityLevel.LOW -> "Low"
-        else -> "Medium"
     }
 
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (task.isCompleted) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface)) {
@@ -87,6 +84,7 @@ fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?) -> Unit) {
     var title by remember { mutableStateOf("") }

@@ -24,7 +24,7 @@ class TasksViewModel(
     fun addTask(title: String, description: String, priority: String, dueDate: Long?) {
         viewModelScope.launch {
             val priorityLevel = when (priority) {
-                "High" -> PriorityLevel.HIGH
+                "High" -> PriorityLevel.IMPORTANT
                 "Low" -> PriorityLevel.LOW
                 else -> PriorityLevel.MEDIUM
             }
