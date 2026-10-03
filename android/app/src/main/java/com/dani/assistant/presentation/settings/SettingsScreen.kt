@@ -14,6 +14,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import com.dani.assistant.core.designsystem.ThemeState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -93,6 +95,19 @@ fun SettingsScreen(onBack: () -> Unit) {
                         MorningDigest.schedule(context)
                     }, digestMin / 60, digestMin % 60, true).show()
                 }) { Text("تغيير") }
+            }
+        }
+
+        // ---- المظهر ----
+        Text("المظهر", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(0 to "داكن", 1 to "فاتح", 2 to "النظام").forEach { (m, label) ->
+                val pick = {
+                    ThemeState.mode = m
+                    AppSettings.setThemeMode(context, m)
+                }
+                if (ThemeState.mode == m) Button(onClick = pick) { Text(label) }
+                else OutlinedButton(onClick = pick) { Text(label) }
             }
         }
 

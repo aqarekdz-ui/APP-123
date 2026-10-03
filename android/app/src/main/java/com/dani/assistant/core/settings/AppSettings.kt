@@ -26,6 +26,10 @@ object AppSettings {
     fun lockEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("app_lock", false)
     fun setLockEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("app_lock", v).apply()
 
+    /** وضع الثيم: 0 داكن (افتراضي)، 1 فاتح، 2 حسب النظام. */
+    fun themeMode(ctx: Context): Int = prefs(ctx).getInt("theme_mode", 0)
+    fun setThemeMode(ctx: Context, v: Int) = prefs(ctx).edit().putInt("theme_mode", v).apply()
+
     /** البحث في الملف المحلي أولاً قبل سؤال الذكاء الاصطناعي. */
     fun localFirst(ctx: Context): Boolean = prefs(ctx).getBoolean(LOCAL_FIRST, true)
     fun setLocalFirst(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean(LOCAL_FIRST, v).apply()

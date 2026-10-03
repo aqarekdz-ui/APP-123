@@ -15,6 +15,9 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.fragment.app.FragmentActivity
 import com.dani.assistant.core.designsystem.DaniTheme
+import com.dani.assistant.core.designsystem.ThemeState
+import com.dani.assistant.core.settings.AppSettings
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.dani.assistant.core.security.AppLock
 import com.dani.assistant.core.security.LockScreen
 import com.dani.assistant.presentation.main.MainScreen
@@ -41,10 +44,16 @@ class MainActivity : FragmentActivity() {
                 .launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
+        ThemeState.mode = AppSettings.themeMode(this)
+
         setContent {
             // Requirement: Wrap content with RTL LayoutDirection and DaniTheme
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                DaniTheme {
+                DaniTheme(darkTheme = when (ThemeState.mode) {
+                    1 -> false
+                    2 -> isSystemInDarkTheme()
+                    else -> true
+                }) {
                     if (locked) {
                         LockScreen(activity = this@MainActivity) {
                             sessionUnlocked = true
