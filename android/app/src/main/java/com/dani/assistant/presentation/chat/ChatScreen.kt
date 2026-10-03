@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dani.assistant.DaniApplication
 import com.dani.assistant.core.ai.GeminiAI
+import com.dani.assistant.core.ai.ProviderSettings
+import androidx.compose.material3.AlertDialog
 import com.dani.assistant.core.ai.ParsedTask
 import com.dani.assistant.core.alarm.ScheduleResult
 import com.dani.assistant.domain.model.Recurrence
@@ -143,6 +145,9 @@ fun ChatScreen() {
     var suggestedTask by remember { mutableStateOf<String?>(null) }
     var currentMood by remember { mutableStateOf("Neutral") }
     var lastLocalKey by remember { mutableStateOf<String?>(null) }
+    var showProviders by remember { mutableStateOf(false) }
+    var groqKeyInput by remember { mutableStateOf("") }
+    var orKeyInput by remember { mutableStateOf("") }
     val ai = remember { GeminiAI() }
     val scope = rememberCoroutineScope()
     val prefs: SharedPreferences = context.getSharedPreferences("chat", Context.MODE_PRIVATE)
@@ -284,6 +289,28 @@ fun ChatScreen() {
                 if (all.size > 40) ai.consolidate(all)?.let { MemoryStore.replaceAll(context, it) }
             } } }, shape = RoundedCornerShape(24.dp)) { Text("Send") }
         }
-        TextButton(onClick = { messages = emptyList(); prefs.edit().clear().apply() }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Clear chat", fontSize = 12.sp) }
+        Row(modifier = Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = { messages = emptyList(); prefs.edit().clear().apply() }) { Text("Clear chat", fontSize = 12.sp) }
+            TextButton(onClick = {
+                groqKeyInput = ProviderSettings.groqKey(context)
+                orKeyInput = ProviderSettings.openRouterKey(context)
+                showProviders = true
+            }) { Text("⚙ مزودات AI", fontSize = 12.sp) }
+        }
+        if (showProviders) {
+            AlertDialog(
+                onDismissRequest = { showProviders = false },
+                title = { Text("مزودات AI المجانية") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Gemini يخدم دايماً. زيد مفاتيح مجانية (بدون بطاقة) كاحتياط تلقائي إذا Gemini وصل الحد:", fontSize = 12.sp)
+                        TextField(value = groqKeyInput, onValueChange = { groqKeyInput = it }, label = { Text("Groq key (console.groq.com/keys)") }, singleLine = true)
+                        TextField(value = orKeyInput, onValueChange = { orKeyInput = it }, label = { Text("OpenRouter key (openrouter.ai/keys)") }, singleLine = true)
+                    }
+                },
+                confirmButton = { Button(onClick = { ProviderSettings.save(context, groqKeyInput, orKeyInput); showProviders = false }) { Text("حفظ") } },
+                dismissButton = { TextButton(onClick = { showProviders = false }) { Text("إلغاء") } }
+            )
+        }
     }
 }

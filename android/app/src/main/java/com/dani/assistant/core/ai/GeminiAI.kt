@@ -7,8 +7,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.google.ai.client.generativeai.type.content
-import com.google.ai.client.generativeai.type.Content
 import java.util.concurrent.ConcurrentHashMap
+import com.dani.assistant.DaniApplication
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -23,12 +28,17 @@ data class ParsedTask(
     val priority: PriorityLevel
 )
 
+private data class Backend(val id: String, val provider: String, val model: String)
+private data class Turn(val role: String, val text: String)
+
+private const val PERSONA = "You are DANI, a smart Algerian personal assistant. Reply in Algerian Darija briefly. Be friendly. If user seems sad comfort them. If happy celebrate. Use emoji sometimes."
+
 class GeminiAI {
     companion object {
         private val API_KEY = "AQ.Ab8RN6LuSvRXB1xvu-" + "dQbYF4jC0RgNI6Ux79sIEijjPnE6Y97A"
 
-        // سلسلة بدائل: كل نموذج له حصة مجانية مستقلة، فإذا نموذج وصل الحد أو توقف ننتقل للي بعده تلقائياً
-        private val MODELS = listOf("gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-2.5-flash-lite")
+        // سلسلة بدائل مجانية: Gemini أولاً، ثم Groq ثم OpenRouter (إذا زدت مفاتيحهم من ⚙). كل مزود/نموذج له حصة مجانية مستقلة.
+        private val GEMINI_MODELS = listOf("gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-2.5-flash-lite")
         private val cooldownUntil = ConcurrentHashMap<String, Long>()
         private val modelCache = ConcurrentHashMap<String, GenerativeModel>()
 
@@ -41,26 +51,97 @@ class GeminiAI {
             val t = errText(e)
             return when {
                 "quota" in t || " 429" in t || "exhausted" in t || "rate limit" in t || "too many" in t -> 60_000L
-                "not found" in t || " 404" in t || "not supported" in t || "no longer" in t || "deprecated" in t -> 6 * 3_600_000L
+                "not found" in t || " 404" in t || "not supported" in t || "no longer" in t || "deprecated" in t || "decommissioned" in t -> 6 * 3_600_000L
+                " 401" in t || "invalid api key" in t -> 10 * 60_000L
                 else -> 10_000L
             }
         }
 
-        private fun candidates(): List<String> {
-            val now = System.currentTimeMillis()
-            val ready = MODELS.filter { (cooldownUntil[it] ?: 0L) <= now }
-            return if (ready.isEmpty()) MODELS else ready
+        private fun backends(): List<Backend> {
+            val ctx = DaniApplication.instance
+            val list = GEMINI_MODELS.map { Backend("gemini:$it", "gemini", it) }.toMutableList()
+            if (ProviderSettings.groqKey(ctx).isNotBlank()) {
+                list += Backend("groq:openai/gpt-oss-120b", "groq", "openai/gpt-oss-120b")
+                list += Backend("groq:openai/gpt-oss-20b", "groq", "openai/gpt-oss-20b")
+            }
+            if (ProviderSettings.openRouterKey(ctx).isNotBlank()) {
+                list += Backend("openrouter:openrouter/free", "openrouter", "openrouter/free")
+            }
+            return list
         }
 
-        private suspend fun <T> withFallback(block: suspend (GenerativeModel) -> T): T {
-            var last: Exception? = null
-            for (name in candidates()) {
+        private fun candidates(): List<Backend> {
+            val now = System.currentTimeMillis()
+            val all = backends()
+            val ready = all.filter { (cooldownUntil[it.id] ?: 0L) <= now }
+            return if (ready.isEmpty()) all else ready
+        }
+
+        private fun fail(b: Backend, e: Exception) {
+            cooldownUntil[b.id] = System.currentTimeMillis() + cooldownFor(e)
+        }
+
+        private suspend fun openAiChat(base: String, key: String, model: String, messages: List<Turn>, extra: Map<String, Any> = emptyMap()): String =
+            withContext(Dispatchers.IO) {
+                val conn = URL(base + "/chat/completions").openConnection() as HttpURLConnection
                 try {
-                    return block(modelFor(name))
+                    conn.requestMethod = "POST"
+                    conn.connectTimeout = 15_000
+                    conn.readTimeout = 60_000
+                    conn.doOutput = true
+                    conn.setRequestProperty("Authorization", "Bearer " + key)
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    val arr = JSONArray()
+                    messages.forEach { arr.put(JSONObject().put("role", it.role).put("content", it.text)) }
+                    val body = JSONObject().put("model", model).put("messages", arr).put("max_tokens", 2048)
+                    extra.forEach { (k, v) -> body.put(k, v) }
+                    conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+                    val code = conn.responseCode
+                    val text = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
+                    if (code !in 200..299) throw IOException("HTTP " + code + " " + text.take(300))
+                    JSONObject(text).getJSONArray("choices").getJSONObject(0).getJSONObject("message").optString("content", "").trim()
+                } finally {
+                    conn.disconnect()
+                }
+            }
+
+        /** يشغّل طلباً على backend واحد. turns: آخر عنصر هو رسالة المستخدم. يرمي استثناء إذا الرد فارغ. */
+        private suspend fun run(b: Backend, turns: List<Turn>): String {
+            val out = when (b.provider) {
+                "gemini" -> {
+                    val m = modelFor(b.model)
+                    if (turns.size == 1) m.generateContent(turns[0].text).text?.trim().orEmpty()
+                    else {
+                        val hist = turns.dropLast(1).map { t -> content(t.role) { text(t.text) } }
+                        m.startChat(history = hist).sendMessage(turns.last().text).text?.trim().orEmpty()
+                    }
+                }
+                else -> {
+                    val ctx = DaniApplication.instance
+                    val msgs = mutableListOf<Turn>()
+                    if (turns.first().text == PERSONA) {
+                        msgs.add(Turn("system", PERSONA))
+                        msgs.addAll(turns.drop(1).map { Turn(if (it.role == "model") "assistant" else it.role, it.text) })
+                    } else {
+                        msgs.addAll(turns.map { Turn(if (it.role == "model") "assistant" else it.role, it.text) })
+                    }
+                    if (b.provider == "groq") openAiChat("https://api.groq.com/openai/v1", ProviderSettings.groqKey(ctx), b.model, msgs, mapOf("reasoning_effort" to "low"))
+                    else openAiChat("https://openrouter.ai/api/v1", ProviderSettings.openRouterKey(ctx), b.model, msgs)
+                }
+            }
+            if (out.isBlank()) throw IllegalStateException("empty reply")
+            return out
+        }
+
+        private suspend fun <T> withFallback(block: suspend (Backend) -> T): T {
+            var last: Exception? = null
+            for (b in candidates()) {
+                try {
+                    return block(b)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    cooldownUntil[name] = System.currentTimeMillis() + cooldownFor(e)
+                    fail(b, e)
                     last = e
                 }
             }
@@ -71,10 +152,10 @@ class GeminiAI {
             val t = errText(e)
             return when {
                 "quota" in t || " 429" in t || "exhausted" in t || "rate limit" in t || "too many" in t ->
-                    "⚠️ وصلت الحد المجاني لـ Gemini دالوقت. عاود بعد دقيقة (الأجوبة المحفوظة محلياً تبقى تخدم)."
-                "api key" in t || "api_key" in t || " 403" in t || "permission" in t ->
-                    "⚠️ مشكل في مفتاح Gemini (ممكن مرفوض)."
-                "location" in t -> "⚠️ Gemini ما يخدمش في منطقتك دالوقت."
+                    "⚠️ وصلت الحد المجاني دالوقت. عاود بعد دقيقة، أو زيد مفتاح Groq المجاني من زر ⚙ (الأجوبة المحفوظة محلياً تبقى تخدم)."
+                "api key" in t || "api_key" in t || " 403" in t || " 401" in t || "permission" in t ->
+                    "⚠️ مشكل في مفتاح الذكاء (ممكن مرفوض)."
+                "location" in t -> "⚠️ المزود ما يخدمش في منطقتك دالوقت."
                 "unknownhost" in t || "unable to resolve" in t || "timeout" in t || "network" in t || "connect" in t ->
                     "⚠️ ما فيش انترنت."
                 else -> "Error"
@@ -82,11 +163,10 @@ class GeminiAI {
         }
     }
 
-    private suspend fun generate(prompt: String): String? = withFallback { it.generateContent(prompt).text }
+    private suspend fun generate(prompt: String): String? = withFallback { run(it, listOf(Turn("user", prompt))) }
 
-    private val persona = content { text("You are DANI, a smart Algerian personal assistant. Reply in Algerian Darija briefly. Be friendly. If user seems sad comfort them. If happy celebrate. Use emoji sometimes.") }
     // Keep chat history short: persona + last 5 exchanges (history is re-sent on every call = tokens)
-    private val history = mutableListOf<Content>(persona)
+    private val history = mutableListOf(Turn("user", PERSONA))
     private fun trimHistory() {
         while (history.size > 11) { history.removeAt(1); history.removeAt(1) }
     }
@@ -96,38 +176,48 @@ class GeminiAI {
         else "معلومات عن المستخدم:\n" + memories.joinToString("\n") { "- " + it } + "\n\nرسالة المستخدم: " + msg
 
     private fun remember(prompt: String, reply: String) {
-        history.add(content("user") { text(prompt) })
-        history.add(content("model") { text(reply) })
+        history.add(Turn("user", prompt))
+        history.add(Turn("model", reply))
     }
 
     suspend fun sendMessage(msg: String, memories: List<String> = emptyList()): String {
         trimHistory()
         val prompt = buildPrompt(msg, memories)
+        val turns = history.toList() + Turn("user", prompt)
         return try {
-            val reply = withFallback { it.startChat(history = history.toList()).sendMessage(prompt).text?.trim() }
-            if (reply.isNullOrEmpty()) "..." else { remember(prompt, reply); reply }
+            val reply = withFallback { run(it, turns) }
+            remember(prompt, reply)
+            reply
         } catch (e: Exception) { "Error" }
     }
 
     fun sendMessageStream(msg: String, memories: List<String> = emptyList()): Flow<String> = flow {
         trimHistory()
         val prompt = buildPrompt(msg, memories)
+        val turns = history.toList() + Turn("user", prompt)
         var last: Exception? = null
-        for (name in candidates()) {
+        for (b in candidates()) {
             val sb = StringBuilder()
             try {
-                val chat = modelFor(name).startChat(history = history.toList())
-                chat.sendMessageStream(prompt).collect { r ->
-                    val t = r.text ?: ""
-                    if (t.isNotEmpty()) { sb.append(t); emit(t) }
+                if (b.provider == "gemini") {
+                    val hist = history.map { t -> content(t.role) { text(t.text) } }
+                    modelFor(b.model).startChat(history = hist).sendMessageStream(prompt).collect { r ->
+                        val t = r.text ?: ""
+                        if (t.isNotEmpty()) { sb.append(t); emit(t) }
+                    }
+                } else {
+                    val r = run(b, turns) // غير تدفقي: الرد كامل مرة وحدة
+                    sb.append(r)
+                    emit(r)
                 }
-                if (sb.isNotEmpty()) remember(prompt, sb.toString())
+                if (sb.isEmpty()) throw IllegalStateException("empty reply")
+                remember(prompt, sb.toString())
                 return@flow
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                cooldownUntil[name] = System.currentTimeMillis() + cooldownFor(e)
-                if (sb.isNotEmpty()) throw e // رد جزئي وصل للمستخدم: ما نبدّلوش النموذج
+                fail(b, e)
+                if (sb.isNotEmpty()) throw e // رد جزئي وصل للمستخدم: ما نبدّلوش المزود
                 last = e
             }
         }
