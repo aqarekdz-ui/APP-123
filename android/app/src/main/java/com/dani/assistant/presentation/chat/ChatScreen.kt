@@ -282,19 +282,32 @@ fun ChatScreen() {
         val arCount = clean.count { it in '\u0600'..'\u06FF' }
         val latCount = clean.count { it in 'A'..'Z' || it in 'a'..'z' }
         if (arCount >= latCount) {
-            if (!ttsArabic) {
-                android.widget.Toast.makeText(context, "ما كاين صوت عربي في الهاتف: اختار محرك Google ونزّل اللغة العربية", android.widget.Toast.LENGTH_LONG).show()
-                try { context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                catch (e: Exception) { try { context.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e2: Exception) { } }
+            // "ar-language" صوت وهمي (placeholder) لما بيانات العربية ما تكونش منزّلة: نتجاهله ونختار صوت حقيقي مثبّت
+            val real = try {
+                tts.voices?.filter {
+                    it.locale.language == "ar" && !it.name.endsWith("-language") &&
+                        !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
+                }
+            } catch (e: Exception) { null } ?: emptyList()
+            val v = real.firstOrNull { it.locale.country == "DZ" } ?: real.firstOrNull { !it.isNetworkConnectionRequired } ?: real.firstOrNull()
+            if (v == null) {
+                android.widget.Toast.makeText(context, "الصوت العربي غير منزّل: نزّل بيانات اللغة العربية (Google) ثم عاود", android.widget.Toast.LENGTH_LONG).show()
+                val intents = listOf(
+                    Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage("com.google.android.tts"),
+                    Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA),
+                    Intent("com.android.settings.TTS_SETTINGS")
+                )
+                for (i in intents) {
+                    try { context.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); break } catch (e: Exception) { }
+                }
                 return@speak
             }
-            val voices = try { tts.voices?.filter { it.locale.language == "ar" } } catch (e: Exception) { null } ?: emptyList()
-            val v = voices.firstOrNull { it.locale.country == "DZ" } ?: voices.firstOrNull { !it.isNetworkConnectionRequired } ?: voices.firstOrNull()
-            if (v != null) tts.voice = v else tts.language = Locale("ar")
+            tts.voice = v
         } else if (tts.isLanguageAvailable(Locale.FRENCH) >= TextToSpeech.LANG_AVAILABLE) {
             tts.language = Locale.FRENCH
         }
-        tts.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "dani")
+        val rc = tts.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "dani")
+        if (rc != TextToSpeech.SUCCESS) android.widget.Toast.makeText(context, "فشل التشغيل (محرك الصوت رفض)", android.widget.Toast.LENGTH_SHORT).show()
         val voiceName = try { tts.voice?.name } catch (e: Exception) { null } ?: tts.language.toString()
         android.widget.Toast.makeText(context, "🔊 " + (if (ttsFallback) "محرك النظام" else "Google TTS") + " • " + voiceName, android.widget.Toast.LENGTH_SHORT).show()
     }
