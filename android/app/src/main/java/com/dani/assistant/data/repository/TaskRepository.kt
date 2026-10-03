@@ -153,6 +153,9 @@ class TaskRepositoryImpl(
                 subtasks = task.subtasks.map { it.copy(done = false) }
             ).toEntity()
         )
+        com.dani.assistant.core.areas.AreaStore.get(DaniApplication.instance, task.id)?.let {
+            com.dani.assistant.core.areas.AreaStore.set(DaniApplication.instance, newId, it)
+        }
         setTaskReminder(newId, task.title, next, ReminderType.NOTIFICATION)
     }
 

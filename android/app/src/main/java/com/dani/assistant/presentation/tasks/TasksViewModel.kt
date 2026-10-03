@@ -3,7 +3,9 @@ package com.dani.assistant.presentation.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.dani.assistant.DaniApplication
 import com.dani.assistant.core.alarm.AlarmScheduler
+import com.dani.assistant.core.areas.AreaStore
 import com.dani.assistant.core.alarm.ScheduleResult
 import com.dani.assistant.domain.model.ReminderType
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +34,11 @@ class TasksViewModel(
 
     fun dismissPermissionPrompt() { _needsExactAlarmPermission.value = false }
 
-    fun addTask(title: String, description: String, priority: String, dueDate: Long?, recurrence: Recurrence = Recurrence.NONE, subtasks: List<Subtask> = emptyList()) {
+    // يزيد كل ما تبدّل مجال مهمة (باش الواجهة تعيد قراءة المجالات)
+    private val _areaTick = MutableStateFlow(0)
+    val areaTick: StateFlow<Int> = _areaTick.asStateFlow()
+
+    fun addTask(title: String, description: String, priority: String, dueDate: Long?, recurrence: Recurrence = Recurrence.NONE, subtasks: List<Subtask> = emptyList(), area: String? = null) {
         viewModelScope.launch {
             val priorityLevel = when (priority) {
                 "High" -> PriorityLevel.IMPORTANT
@@ -51,6 +57,8 @@ class TasksViewModel(
             )
             
             val id = taskRepository.insertTask(newTask)
+            AreaStore.set(DaniApplication.instance, id, area)
+            _areaTick.value = _areaTick.value + 1
             if (dueDate != null && dueDate > System.currentTimeMillis()) {
                 val result = taskRepository.setTaskReminder(id, title, dueDate, ReminderType.NOTIFICATION)
                 if (result is ScheduleResult.ExactAlarmPermissionRequired) {
@@ -60,7 +68,7 @@ class TasksViewModel(
         }
     }
 
-    fun updateTask(task: Task, title: String, description: String, priority: String, dueDate: Long?, recurrence: Recurrence = task.recurrence, subtasks: List<Subtask> = task.subtasks) {
+    fun updateTask(task: Task, title: String, description: String, priority: String, dueDate: Long?, recurrence: Recurrence = task.recurrence, subtasks: List<Subtask> = task.subtasks, area: String? = AreaStore.get(DaniApplication.instance, task.id)) {
         viewModelScope.launch {
             val newPriority = if (priorityLabel(task.priority) == priority) task.priority else when (priority) {
                 "High" -> PriorityLevel.IMPORTANT
@@ -76,6 +84,8 @@ class TasksViewModel(
                 subtasks = subtasks
             )
             taskRepository.updateTask(updated)
+            AreaStore.set(DaniApplication.instance, task.id, area)
+            _areaTick.value = _areaTick.value + 1
 
             if (dueDate != task.dueDate && !task.isCompleted) {
                 if (dueDate != null && dueDate > System.currentTimeMillis()) {

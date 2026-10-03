@@ -7,6 +7,8 @@ import com.dani.assistant.core.knowledge.KnowledgeEntry
 import com.dani.assistant.core.memory.MemoryStore
 import com.dani.assistant.core.memory.SecretStore
 import com.dani.assistant.core.realestate.RealEstateStore
+import com.dani.assistant.core.habits.HabitStore
+import com.dani.assistant.core.areas.AreaStore
 import com.dani.assistant.domain.model.PriorityLevel
 import com.dani.assistant.domain.model.Recurrence
 import com.dani.assistant.domain.model.ReminderType
@@ -31,7 +33,8 @@ data class ImportResult(
     val secrets: Int,
     val secretsSkipped: Boolean,
     val chat: Int = 0,
-    val realestate: Int = 0
+    val realestate: Int = 0,
+    val habits: Int = 0
 )
 
 /** نسخة احتياطية موحّدة: مهام + معلومات + معرفة + رسائل الشات + أسرار (مشفّرة بكلمة سر النسخة، اختيارية). */
@@ -127,6 +130,7 @@ object BackupManager {
                     .put("created", it.createdAt)
                     .put("completed", it.completedAt ?: JSONObject.NULL)
                     .put("rec", it.recurrence.name)
+                    .put("area", AreaStore.get(ctx, it.id) ?: JSONObject.NULL)
                     .put("subs", JSONArray().also { a -> it.subtasks.forEach { s -> a.put(JSONObject().put("t", s.text).put("d", s.done)) } })
             )
         }
@@ -146,6 +150,7 @@ object BackupManager {
             .put("knowledge", knowledgeArr)
             .put("chat", readChat(ctx))
             .put("realestate", RealEstateStore.exportJson(ctx))
+            .put("habits", HabitStore.exportJson(ctx))
         if (pass.isNotEmpty()) {
             val secrets = SecretStore.getAll(ctx)
             if (secrets.isNotEmpty()) {
@@ -190,6 +195,7 @@ object BackupManager {
                 } ?: emptyList()
             )
             val id = repo.insertTask(task)
+            if (!o.isNull("area")) AreaStore.set(ctx, id, o.getString("area"))
             tasksAdded++
             if (due != null && due > System.currentTimeMillis() &&
                 status != TaskStatus.COMPLETED && status != TaskStatus.CANCELLED
@@ -217,6 +223,7 @@ object BackupManager {
 
         // العقار (عملاء + عقارات)
         val reAdded = root.optJSONObject("realestate")?.let { RealEstateStore.importJson(ctx, it) } ?: 0
+        val habitsAdded = root.optJSONObject("habits")?.let { HabitStore.importJson(ctx, it) } ?: 0
 
         // الأسرار
         var secretsAdded = 0
@@ -232,6 +239,6 @@ object BackupManager {
                 secretsAdded = SecretStore.getAll(ctx).size - before
             }
         }
-        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped, chatAdded, reAdded)
+        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped, chatAdded, reAdded, habitsAdded)
     }
 }

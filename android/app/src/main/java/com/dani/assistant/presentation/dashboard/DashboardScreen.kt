@@ -1,6 +1,15 @@
 package com.dani.assistant.presentation.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.dani.assistant.core.areas.AreaStore
+import com.dani.assistant.core.habits.HabitStore
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -34,24 +43,40 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, onOpenRealEstate: () -> Unit = {}) {
+fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, onOpenRealEstate: () -> Unit = {}, onOpenHabits: () -> Unit = {}) {
     val tasks by viewModel.tasks.collectAsState()
     val pending = tasks.filter { !it.isCompleted }
     val done = tasks.count { it.isCompleted }
     val urgent = pending.count { it.priority == PriorityLevel.URGENT_CRITICAL || it.priority == PriorityLevel.IMPORTANT }
+    val dashCtx = LocalContext.current
+    val areaMap = remember(tasks) { AreaStore.all(dashCtx) }
+    val areaCounts = AreaStore.areas.map { a -> a to pending.count { areaMap[it.id] == a.key } }.filter { it.second > 0 }
+    val habitList = remember { HabitStore.list(dashCtx) }
+    val todayKey = HabitStore.dayKey(0)
+    val habitsLabel = if (habitList.isEmpty()) "" else " (" + habitList.count { it.days.contains(todayKey) } + "/" + habitList.size + ")"
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("DANI", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Row {
-                TextButton(onClick = onOpenRealEstate) { Text("🏠 العقار") }
-                TextButton(onClick = onOpenSettings) { Text("⚙ الإعدادات") }
-            }
+            TextButton(onClick = onOpenSettings) { Text("⚙ الإعدادات") }
+        }
+        Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onOpenHabits) { Text("✅ العادات" + habitsLabel) }
+            OutlinedButton(onClick = onOpenRealEstate) { Text("🏠 العقار") }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatCard("متبقية", pending.size.toString(), Modifier.weight(1f))
             StatCard("مهمة", urgent.toString(), Modifier.weight(1f))
             StatCard("منجزة", done.toString(), Modifier.weight(1f))
+        }
+        if (areaCounts.isNotEmpty()) {
+            Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                areaCounts.forEach { (a, n) ->
+                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                        Text(a.emoji + " " + a.label + " " + n, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                    }
+                }
+            }
         }
         WeeklyStats(tasks)
         Text("المهام القادمة", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

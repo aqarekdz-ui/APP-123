@@ -1,6 +1,8 @@
 package com.dani.assistant.presentation.tasks
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import com.dani.assistant.core.areas.AreaStore
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -38,6 +40,10 @@ fun TasksScreen(viewModel: TasksViewModel) {
     var filterPriority by remember { mutableStateOf("All") }
     var query by remember { mutableStateOf("") }
     var pendingDelete by remember { mutableStateOf<Task?>(null) }
+    var filterArea by remember { mutableStateOf<String?>(null) }
+    val areaCtx = LocalContext.current
+    val areaTick by viewModel.areaTick.collectAsState()
+    val areaMap = remember(tasks, areaTick) { AreaStore.all(areaCtx) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -48,6 +54,16 @@ fun TasksScreen(viewModel: TasksViewModel) {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("All", "High", "Medium", "Low").forEach { priority ->
                 FilterChip(selected = filterPriority == priority, onClick = { filterPriority = priority }, label = { Text(prioAr(priority)) })
+            }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            AreaStore.areas.forEach { a ->
+                FilterChip(
+                    selected = filterArea == a.key,
+                    onClick = { filterArea = if (filterArea == a.key) null else a.key },
+                    label = { Text(a.emoji + " " + a.label, fontSize = 11.sp) }
+                )
             }
         }
 
@@ -63,6 +79,7 @@ fun TasksScreen(viewModel: TasksViewModel) {
         val q = query.trim()
         val filteredTasks = tasks.filter { t ->
             (filterPriority == "All" || priorityLabel(t.priority) == filterPriority) &&
+                (filterArea == null || areaMap[t.id] == filterArea) &&
                 (q.isEmpty() || t.title.contains(q, ignoreCase = true) || (t.description ?: "").contains(q, ignoreCase = true))
         }
         if (filteredTasks.isEmpty() && (q.isNotEmpty() || tasks.isNotEmpty())) {
@@ -97,7 +114,7 @@ fun TasksScreen(viewModel: TasksViewModel) {
                         }
                     }
                 ) {
-                    TaskCard(task = task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) }, onEdit = { editingTask = task }, onSubtaskToggle = { i -> viewModel.toggleSubtask(task, i) })
+                    TaskCard(task = task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) }, onEdit = { editingTask = task }, area = areaMap[task.id], onSubtaskToggle = { i -> viewModel.toggleSubtask(task, i) })
                 }
             }
         }
@@ -136,8 +153,8 @@ fun TasksScreen(viewModel: TasksViewModel) {
         if (editing != null) {
             AddTaskDialog(
                 onDismiss = { editingTask = null },
-                onAdd = { title, desc, priority, dueDate, rec, subs ->
-                    viewModel.updateTask(editing, title, desc, priority, dueDate, rec, subs)
+                onAdd = { title, desc, priority, dueDate, rec, subs, area ->
+                    viewModel.updateTask(editing, title, desc, priority, dueDate, rec, subs, area)
                     editingTask = null
                 },
                 initial = editing
@@ -145,8 +162,8 @@ fun TasksScreen(viewModel: TasksViewModel) {
         }
 
         if (showAddDialog) {
-            AddTaskDialog(onDismiss = { showAddDialog = false }, onAdd = { title, desc, priority, dueDate, rec, subs ->
-                viewModel.addTask(title, desc, priority, dueDate, rec, subs)
+            AddTaskDialog(onDismiss = { showAddDialog = false }, onAdd = { title, desc, priority, dueDate, rec, subs, area ->
+                viewModel.addTask(title, desc, priority, dueDate, rec, subs, area)
                 showAddDialog = false
             })
         }
@@ -169,7 +186,7 @@ private fun prioAr(p: String): String = when (p) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit = {}, onSubtaskToggle: (Int) -> Unit = {}) {
+fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit = {}, onSubtaskToggle: (Int) -> Unit = {}, area: String? = null) {
     val priorityName = priorityLabel(task.priority)
     val priorityColor = when (priorityName) {
         "High" -> MaterialTheme.colorScheme.error
@@ -185,6 +202,7 @@ fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onEdit: () 
                 if (!task.description.isNullOrEmpty()) Text(task.description, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                 Row(modifier = Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(prioAr(priorityName), fontSize = 10.sp, color = priorityColor, fontWeight = FontWeight.Bold)
+                    AreaStore.find(area)?.let { a -> Text(a.emoji + " " + a.label, fontSize = 10.sp, color = MaterialTheme.colorScheme.outline) }
                     if (task.recurrence != Recurrence.NONE) Text("🔁 " + task.recurrence.arabic, fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
                     if (task.dueDate != null) Text(SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(task.dueDate)), fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
                     if (task.subtasks.isNotEmpty()) Text("☑ " + task.subtasks.count { it.done } + "/" + task.subtasks.size, fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
@@ -203,7 +221,7 @@ fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onEdit: () 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?, Recurrence, List<Subtask>) -> Unit, initial: Task? = null) {
+fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?, Recurrence, List<Subtask>, String?) -> Unit, initial: Task? = null) {
     var title by remember { mutableStateOf(initial?.title ?: "") }
     var description by remember { mutableStateOf(initial?.description ?: "") }
     var priority by remember { mutableStateOf(if (initial != null) priorityLabel(initial.priority) else "Medium") }
@@ -212,6 +230,7 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?, 
     var subs by remember { mutableStateOf(initial?.subtasks ?: emptyList<Subtask>()) }
     var newSub by remember { mutableStateOf("") }
     val context = LocalContext.current
+    var area by remember { mutableStateOf<String?>(if (initial != null) AreaStore.get(context, initial.id) else null) }
     fun pickDateTime() {
         val cal = Calendar.getInstance()
         DatePickerDialog(context, { _, y, m, d ->
@@ -253,6 +272,14 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?, 
             }
             if (dueDate == null) Text("اختر وقت التذكير باش تفعّل التكرار", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
             Spacer(modifier = Modifier.height(8.dp))
+            Text("🧭 المجال", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilterChip(selected = area == null, onClick = { area = null }, label = { Text("بدون", fontSize = 11.sp) })
+                AreaStore.areas.forEach { a ->
+                    FilterChip(selected = area == a.key, onClick = { area = a.key }, label = { Text(a.emoji + " " + a.label, fontSize = 11.sp) })
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
             Text("☑ خطوات فرعية", fontSize = 12.sp, fontWeight = FontWeight.Bold)
             subs.forEachIndexed { i, st ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -267,5 +294,5 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?, 
                 }) { Text("＋") }
             }
         }
-    }, confirmButton = { Button(onClick = { if (title.isNotBlank()) onAdd(title, description, priority, dueDate, recurrence, if (newSub.isNotBlank()) subs + Subtask(newSub.trim()) else subs) }) { Text(if (initial == null) "Add" else "Save") } }, dismissButton = { Button(onClick = onDismiss) { Text("Cancel") } })
+    }, confirmButton = { Button(onClick = { if (title.isNotBlank()) onAdd(title, description, priority, dueDate, recurrence, if (newSub.isNotBlank()) subs + Subtask(newSub.trim()) else subs, area) }) { Text(if (initial == null) "Add" else "Save") } }, dismissButton = { Button(onClick = onDismiss) { Text("Cancel") } })
 }
