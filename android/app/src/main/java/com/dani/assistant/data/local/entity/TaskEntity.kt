@@ -39,7 +39,7 @@ data class TaskEntity(
     @ColumnInfo(name = "completed_at")
     val completedAt: Long? = null,
     @ColumnInfo(name = "recurrence")
-    val recurrence: String = "NONE",
+    val recurrence: String,
     // JSON للخطوات الفرعية (بدون defaultValue في الـ entity عمداً: Room ما يتحقق من default إذا الـ entity ما حدّدوش)
     val subtasks: String = ""
 )
