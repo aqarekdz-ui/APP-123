@@ -183,7 +183,7 @@ fun ChatScreen() {
                 fun setReply(t: String) { if (idx < messages.size) messages = messages.toMutableList().also { it[idx] = Message(t, false) } }
                 val sb = StringBuilder()
                 try {
-                    ai.sendMessageStream(inputText, MemoryStore.getAll(context) + (if (SecretStore.looksSensitive(inputText)) SecretStore.getAll(context) else emptyList())).collect { chunk -> sb.append(chunk); setReply(sb.toString()) }
+                    ai.sendMessageStream(inputText, MemoryStore.getAll(context).takeLast(12) + (if (SecretStore.looksSensitive(inputText)) SecretStore.getAll(context) else emptyList())).collect { chunk -> sb.append(chunk); setReply(sb.toString()) }
                 } catch (e: Exception) { if (sb.isEmpty()) setReply("Error") }
                 if (sb.isEmpty()) setReply("...")
                 val known = MemoryStore.getAll(context)

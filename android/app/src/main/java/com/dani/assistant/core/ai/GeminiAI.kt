@@ -13,16 +13,22 @@ class GeminiAI {
         apiKey = "AQ.Ab8RN6LuSvRXB1xvu-" + "dQbYF4jC0RgNI6Ux79sIEijjPnE6Y97A"
     )
     private val chat = model.startChat(history = listOf(content { text("You are DANI, a smart Algerian personal assistant. Reply in Algerian Darija briefly. Be friendly. If user seems sad comfort them. If happy celebrate. Use emoji sometimes.") }))
+    // Keep chat history short: persona + last 5 exchanges (history is re-sent on every call = tokens)
+    private fun trimHistory() {
+        try { while (chat.history.size > 11) { chat.history.removeAt(1); chat.history.removeAt(1) } } catch (e: Exception) { }
+    }
+
     private fun buildPrompt(msg: String, memories: List<String>): String =
         if (memories.isEmpty()) msg
         else "معلومات عن المستخدم:\n" + memories.joinToString("\n") { "- " + it } + "\n\nرسالة المستخدم: " + msg
 
     suspend fun sendMessage(msg: String, memories: List<String> = emptyList()): String {
+        trimHistory()
         return try { chat.sendMessage(buildPrompt(msg, memories)).text?.trim() ?: "..." } catch (e: Exception) { "Error" }
     }
 
     fun sendMessageStream(msg: String, memories: List<String> = emptyList()): Flow<String> =
-        chat.sendMessageStream(buildPrompt(msg, memories)).map { it.text ?: "" }
+        run { trimHistory(); chat.sendMessageStream(buildPrompt(msg, memories)) }.map { it.text ?: "" }
 
     // Returns a short task title if the message contains a task/reminder/appointment, else null
     suspend fun extractTask(msg: String): String? {
@@ -38,6 +44,7 @@ class GeminiAI {
 
     // One call: extracts a task (if any) and new durable facts about the user
     suspend fun analyze(msg: String, known: List<String>): Triple<String?, List<String>, List<String>> {
+        if (msg.trim().length < 20) return Triple(null, emptyList(), emptyList())
         return try {
             val prompt = "حلل رسالة المستخدم وأرجع JSON فقط بهذا الشكل بدون أي نص آخر: " +
                 "{\"task\": \"عنوان قصير للمهمة أو التذكير أو الموعد إن وجد وإلا null\", \"facts\": [\"...\"], \"secrets\": [\"...\"]}. " +
