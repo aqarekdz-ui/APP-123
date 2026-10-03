@@ -147,6 +147,8 @@ fun ChatScreen() {
     var currentMood by remember { mutableStateOf("Neutral") }
     var lastLocalKey by remember { mutableStateOf<String?>(null) }
     var showProviders by remember { mutableStateOf(false) }
+    var sending by remember { mutableStateOf(false) }
+    var sendJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var groqKeyInput by remember { mutableStateOf("") }
     var orKeyInput by remember { mutableStateOf("") }
     val ai = remember { GeminiAI() }
@@ -250,7 +252,9 @@ fun ChatScreen() {
         Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = { val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-DZ") }; speechLauncher.launch(intent) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("mic", fontSize = 18.sp) }
             TextField(value = userInput, onValueChange = { userInput = it }, modifier = Modifier.weight(1f), placeholder = { Text("Type or speak...") }, shape = RoundedCornerShape(24.dp))
-            Button(onClick = { if (userInput.isNotBlank()) { val inputText = userInput; if (inputText.startsWith("تذكر") || inputText.lowercase().startsWith("remember")) { val fact = inputText.substringAfter(" ", "").trim(); if (fact.isNotEmpty()) { if (SecretStore.looksSensitive(fact)) SecretStore.add(context, fact) else MemoryStore.add(context, fact) } }; val result = analyzeMessage(inputText); currentMood = result.first; suggestedTask = result.second; val msg = Message(inputText, true, mood = result.first); messages = messages + msg; userInput = ""; scope.launch {
+            if (sending) {
+                Button(onClick = { sendJob?.cancel() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(24.dp)) { Text("⏹ Stop") }
+            } else Button(onClick = { if (userInput.isNotBlank()) { val inputText = userInput; if (inputText.startsWith("تذكر") || inputText.lowercase().startsWith("remember")) { val fact = inputText.substringAfter(" ", "").trim(); if (fact.isNotEmpty()) { if (SecretStore.looksSensitive(fact)) SecretStore.add(context, fact) else MemoryStore.add(context, fact) } }; val result = analyzeMessage(inputText); currentMood = result.first; suggestedTask = result.second; val msg = Message(inputText, true, mood = result.first); messages = messages + msg; userInput = ""; sending = true; sendJob = scope.launch { try {
                 if (looksLikeTaskCommand(inputText)) {
                     val cmd = ai.parseTaskCommand(inputText)
                     if (cmd != null) {
@@ -278,6 +282,9 @@ fun ChatScreen() {
                 var failed = false
                 try {
                     ai.sendMessageStream(inputText, MemoryStore.getAll(context).takeLast(12) + (if (SecretStore.looksSensitive(inputText)) SecretStore.getAll(context) else emptyList())).collect { chunk -> sb.append(chunk); setReply(sb.toString()) }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    setReply(if (sb.isEmpty()) "⏹ تم الإيقاف" else sb.toString() + "\n⏹")
+                    throw e
                 } catch (e: Exception) { failed = true; if (sb.isEmpty()) setReply(GeminiAI.friendlyError(e)) }
                 if (sb.isEmpty()) setReply("...")
                 if (AppSettings.autoLearn(context) && !failed && sb.isNotEmpty() && KnowledgeBase.cacheable(inputText, sb.toString())) KnowledgeBase.put(context, inputText, sb.toString())
@@ -288,7 +295,7 @@ fun ChatScreen() {
                 secrets.forEach { SecretStore.add(context, it) }
                 val all = MemoryStore.getAll(context)
                 if (all.size > 40) ai.consolidate(all)?.let { MemoryStore.replaceAll(context, it) }
-            } } }, shape = RoundedCornerShape(24.dp)) { Text("Send") }
+            } finally { sending = false } } } }, shape = RoundedCornerShape(24.dp)) { Text("Send") }
         }
         Row(modifier = Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = { messages = emptyList(); prefs.edit().clear().apply() }) { Text("Clear chat", fontSize = 12.sp) }
