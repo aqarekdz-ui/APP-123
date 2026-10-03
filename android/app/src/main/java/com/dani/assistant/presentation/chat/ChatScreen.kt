@@ -195,8 +195,8 @@ fun ChatScreen() {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
             Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Mood:", style = MaterialTheme.typography.bodyMedium)
-                Text(currentMood, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("المزاج:", style = MaterialTheme.typography.bodyMedium)
+                Text(moodAr(currentMood), fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -204,12 +204,12 @@ fun ChatScreen() {
                 item {
                     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Hello! I am DANI", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("مرحبا! أنا DANI", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Press mic to speak")
-                            Text("Press speaker to hear replies")
-                            Text("Chat saves automatically")
-                            Text("I suggest tasks from your words")
+                            Text("اضغط على الميكروفون باش تتكلم")
+                            Text("اضغط على السماعة باش تسمع الرد")
+                            Text("المحادثة تتحفظ تلقائياً")
+                            Text("نقترح عليك مهام من كلامك")
                         }
                     }
                 }
@@ -234,14 +234,14 @@ fun ChatScreen() {
                 item {
                     Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
                         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) { Text("Task suggestion:", fontWeight = FontWeight.Bold, fontSize = 12.sp); Text(suggestedTask!!, fontSize = 14.sp, modifier = Modifier.padding(end = 8.dp)) }
+                            Column(modifier = Modifier.weight(1f)) { Text("اقتراح مهمة:", fontWeight = FontWeight.Bold, fontSize = 12.sp); Text(suggestedTask!!, fontSize = 14.sp, modifier = Modifier.padding(end = 8.dp)) }
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                TextButton(onClick = { suggestedTask = null }) { Text("Ignore") }
+                                TextButton(onClick = { suggestedTask = null }) { Text("تجاهل") }
                                 Button(onClick = {
                                     val t = suggestedTask
                                     if (t != null) scope.launch { DaniApplication.instance.taskRepository.insertTask(Task(title = t)) }
                                     suggestedTask = null
-                                }) { Text("Add") }
+                                }) { Text("إضافة") }
                             }
                         }
                     }
@@ -250,9 +250,9 @@ fun ChatScreen() {
         }
         Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = { val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-DZ") }; speechLauncher.launch(intent) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("mic", fontSize = 18.sp) }
-            TextField(value = userInput, onValueChange = { userInput = it }, modifier = Modifier.weight(1f), placeholder = { Text("Type or speak...") }, shape = RoundedCornerShape(24.dp))
+            TextField(value = userInput, onValueChange = { userInput = it }, modifier = Modifier.weight(1f), placeholder = { Text("اكتب أو تكلّم...") }, shape = RoundedCornerShape(24.dp))
             if (sending) {
-                Button(onClick = { sendJob?.cancel() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(24.dp)) { Text("⏹ Stop") }
+                Button(onClick = { sendJob?.cancel() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(24.dp)) { Text("⏹ وقف") }
             } else Button(onClick = { if (userInput.isNotBlank()) { val inputText = userInput; if (inputText.startsWith("تذكر") || inputText.lowercase().startsWith("remember")) { val fact = inputText.substringAfter(" ", "").trim(); if (fact.isNotEmpty()) { if (SecretStore.looksSensitive(fact)) SecretStore.add(context, fact) else MemoryStore.add(context, fact) } }; val result = analyzeMessage(inputText); currentMood = result.first; suggestedTask = result.second; val msg = Message(inputText, true, mood = result.first); messages = messages + msg; userInput = ""; sending = true; sendJob = scope.launch { try {
                 if (looksLikeTaskCommand(inputText)) {
                     val cmd = ai.parseTaskCommand(inputText)
@@ -294,10 +294,10 @@ fun ChatScreen() {
                 secrets.forEach { SecretStore.add(context, it) }
                 val all = MemoryStore.getAll(context)
                 if (all.size > 40) ai.consolidate(all)?.let { MemoryStore.replaceAll(context, it) }
-            } finally { sending = false } } } }, shape = RoundedCornerShape(24.dp)) { Text("Send") }
+            } finally { sending = false } } } }, shape = RoundedCornerShape(24.dp)) { Text("إرسال") }
         }
         Row(modifier = Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { messages = emptyList(); prefs.edit().clear().apply() }) { Text("Clear chat", fontSize = 12.sp) }
+            TextButton(onClick = { messages = emptyList(); prefs.edit().clear().apply() }) { Text("مسح المحادثة", fontSize = 12.sp) }
             TextButton(onClick = {
                 groqKeyInput = ProviderSettings.groqKey(context)
                 orKeyInput = ProviderSettings.openRouterKey(context)
@@ -320,4 +320,14 @@ fun ChatScreen() {
             )
         }
     }
+}
+
+private fun moodAr(m: String): String = when (m) {
+    "Neutral" -> "عادي"
+    "Happy" -> "فرحان"
+    "Sad" -> "حزين"
+    "Angry" -> "غاضب"
+    "Worried" -> "قلقان"
+    "Loved" -> "محبوب"
+    else -> m
 }

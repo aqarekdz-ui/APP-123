@@ -41,13 +41,13 @@ fun TasksScreen(viewModel: TasksViewModel) {
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Tasks", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Button(onClick = { showAddDialog = true }) { Text("Add Task") }
+            Text("المهام", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Button(onClick = { showAddDialog = true }) { Text("إضافة مهمة") }
         }
 
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("All", "High", "Medium", "Low").forEach { priority ->
-                FilterChip(selected = filterPriority == priority, onClick = { filterPriority = priority }, label = { Text(priority) })
+                FilterChip(selected = filterPriority == priority, onClick = { filterPriority = priority }, label = { Text(prioAr(priority)) })
             }
         }
 
@@ -159,6 +159,14 @@ internal fun priorityLabel(p: PriorityLevel): String = when (p) {
     PriorityLevel.MEDIUM -> "Medium"
 }
 
+private fun prioAr(p: String): String = when (p) {
+    "All" -> "الكل"
+    "High" -> "عالية"
+    "Medium" -> "متوسطة"
+    "Low" -> "منخفضة"
+    else -> p
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit = {}, onSubtaskToggle: (Int) -> Unit = {}) {
@@ -176,7 +184,7 @@ fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onEdit: () 
                 Text(text = task.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, style = if (task.isCompleted) MaterialTheme.typography.bodyLarge.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough) else MaterialTheme.typography.bodyLarge)
                 if (!task.description.isNullOrEmpty()) Text(task.description, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                 Row(modifier = Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(priorityName, fontSize = 10.sp, color = priorityColor, fontWeight = FontWeight.Bold)
+                    Text(prioAr(priorityName), fontSize = 10.sp, color = priorityColor, fontWeight = FontWeight.Bold)
                     if (task.recurrence != Recurrence.NONE) Text("🔁 " + task.recurrence.arabic, fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
                     if (task.dueDate != null) Text(SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(task.dueDate)), fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
                     if (task.subtasks.isNotEmpty()) Text("☑ " + task.subtasks.count { it.done } + "/" + task.subtasks.size, fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
@@ -216,15 +224,15 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?, 
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
     }
 
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (initial == null) "Add Task" else "Edit Task") }, text = {
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (initial == null) "إضافة مهمة" else "تعديل المهمة") }, text = {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            TextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())
+            TextField(value = title, onValueChange = { title = it }, label = { Text("العنوان") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(8.dp))
-            TextField(value = description, onValueChange = { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
+            TextField(value = description, onValueChange = { description = it }, label = { Text("الوصف") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("High", "Medium", "Low").forEach { p ->
-                    FilterChip(selected = priority == p, onClick = { priority = p }, label = { Text(p) })
+                    FilterChip(selected = priority == p, onClick = { priority = p }, label = { Text(prioAr(p)) })
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
