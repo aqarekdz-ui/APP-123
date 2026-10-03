@@ -47,6 +47,14 @@ class MainActivity : FragmentActivity() {
         ThemeState.mode = AppSettings.themeMode(this)
 
         setContent {
+            var crash by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(com.dani.assistant.core.debug.CrashLog.read(this@MainActivity)) }
+            val crashNow = crash
+            if (crashNow != null) {
+                com.dani.assistant.core.debug.CrashScreen(crashNow) {
+                    com.dani.assistant.core.debug.CrashLog.clear(this@MainActivity)
+                    crash = null
+                }
+            } else {
             // Requirement: Wrap content with RTL LayoutDirection and DaniTheme
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                 DaniTheme(darkTheme = when (ThemeState.mode) {
@@ -64,6 +72,7 @@ class MainActivity : FragmentActivity() {
                     }
                 }
             }
+        }
         }
     }
 

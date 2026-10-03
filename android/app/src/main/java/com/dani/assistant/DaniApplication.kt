@@ -30,9 +30,10 @@ class DaniApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        com.dani.assistant.core.debug.CrashLog.install(this)
 
         // Initialize notification channels at application startup
-        NotificationHelper.createNotificationChannels(this)
+        try { NotificationHelper.createNotificationChannels(this) } catch (e: Exception) { }
 
         // الملخص الصباحي اليومي
         try { MorningDigest.schedule(this) } catch (e: Exception) { }
