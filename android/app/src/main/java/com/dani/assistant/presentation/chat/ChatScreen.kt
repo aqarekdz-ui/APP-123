@@ -3,6 +3,8 @@ package com.dani.assistant.presentation.chat
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import org.json.JSONArray
+import org.json.JSONObject
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -55,6 +57,45 @@ import java.util.Locale
 
 data class Message(val text: String, val isUser: Boolean, val timestamp: Long = System.currentTimeMillis(), val mood: String = "")
 
+private const val KEY_JSON = "msg_json"
+private const val KEY_LEGACY = "msg"
+
+private fun saveMessages(prefs: SharedPreferences, list: List<Message>) {
+    val arr = JSONArray()
+    list.forEach {
+        arr.put(JSONObject().put("t", it.text).put("u", it.isUser).put("ts", it.timestamp).put("m", it.mood))
+    }
+    prefs.edit().putString(KEY_JSON, arr.toString()).remove(KEY_LEGACY).apply()
+}
+
+private fun loadMessages(prefs: SharedPreferences): List<Message> {
+    val json = prefs.getString(KEY_JSON, null)
+    if (json != null && json.isNotEmpty()) {
+        return try {
+            val arr = JSONArray(json)
+            (0 until arr.length()).map {
+                val o = arr.getJSONObject(it)
+                Message(o.optString("t"), o.optBoolean("u"), o.optLong("ts", System.currentTimeMillis()), o.optString("m"))
+            }
+        } catch (e: Exception) { emptyList() }
+    }
+    // ترحيل من الصيغة القديمة (:::/|||)
+    val legacy = prefs.getString(KEY_LEGACY, null)
+    if (legacy != null && legacy.isNotEmpty()) {
+        val list = mutableListOf<Message>()
+        legacy.split("|||").forEach { part ->
+            val parts = part.split(":::")
+            if (parts.size >= 2) {
+                val ts = if (parts.size >= 3) parts[2].toLongOrNull() ?: System.currentTimeMillis() else System.currentTimeMillis()
+                val md = if (parts.size >= 4) parts[3] else ""
+                list.add(Message(parts[0], parts[1] == "true", ts, md))
+            }
+        }
+        return list
+    }
+    return emptyList()
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen() {
@@ -69,26 +110,12 @@ fun ChatScreen() {
     val prefs: SharedPreferences = context.getSharedPreferences("chat", Context.MODE_PRIVATE)
 
     LaunchedEffect(Unit) {
-        val saved = prefs.getString("msg", "")
-        if (saved != null && saved.isNotEmpty()) {
-            val list = mutableListOf<Message>()
-            saved.split("|||").forEach { part ->
-                val parts = part.split(":::")
-                if (parts.size >= 2) {
-                    val ts = if (parts.size >= 3) parts[2].toLongOrNull() ?: System.currentTimeMillis() else System.currentTimeMillis()
-                    val md = if (parts.size >= 4) parts[3] else ""
-                    list.add(Message(parts[0], parts[1] == "true", ts, md))
-                }
-            }
-            if (list.isNotEmpty()) messages = list
-        }
+        val loaded = loadMessages(prefs)
+        if (loaded.isNotEmpty()) messages = loaded
     }
 
     LaunchedEffect(messages) {
-        if (messages.isNotEmpty()) {
-            val saved = messages.joinToString("|||") { it.text + ":::" + it.isUser + ":::" + it.timestamp + ":::" + it.mood }
-            prefs.edit().putString("msg", saved).apply()
-        }
+        if (messages.isNotEmpty()) saveMessages(prefs, messages)
     }
 
     val tts = remember { TextToSpeech(context, null) }
