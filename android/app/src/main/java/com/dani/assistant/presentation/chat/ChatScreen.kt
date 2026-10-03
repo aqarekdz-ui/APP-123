@@ -272,7 +272,7 @@ fun ChatScreen() {
                 var failed = false
                 try {
                     ai.sendMessageStream(inputText, MemoryStore.getAll(context).takeLast(12) + (if (SecretStore.looksSensitive(inputText)) SecretStore.getAll(context) else emptyList())).collect { chunk -> sb.append(chunk); setReply(sb.toString()) }
-                } catch (e: Exception) { failed = true; if (sb.isEmpty()) setReply("Error") }
+                } catch (e: Exception) { failed = true; if (sb.isEmpty()) setReply(GeminiAI.friendlyError(e)) }
                 if (sb.isEmpty()) setReply("...")
                 if (!failed && sb.isNotEmpty() && KnowledgeBase.cacheable(inputText, sb.toString())) KnowledgeBase.put(context, inputText, sb.toString())
                 val known = MemoryStore.getAll(context)
