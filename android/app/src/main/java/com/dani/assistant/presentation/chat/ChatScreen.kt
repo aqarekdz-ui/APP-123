@@ -275,6 +275,30 @@ fun ChatScreen() {
     }
     DisposableEffect(tts) { onDispose { tts.stop(); tts.shutdown() } }
 
+    // قراءة الرسالة: اللغة تتحدد حسب الحروف (عربي → صوت عربي، لاتيني → فرنسي) ويتحط الصوت صراحةً قبل كل قراءة
+    val speakMsg: (String) -> Unit = speak@{ raw ->
+        val clean = raw.replace(Regex("[\\p{So}\\p{Cs}\\uFE0F\\u200D*#_`]"), "").trim()
+        if (clean.isEmpty()) return@speak
+        val arCount = clean.count { it in '\u0600'..'\u06FF' }
+        val latCount = clean.count { it in 'A'..'Z' || it in 'a'..'z' }
+        if (arCount >= latCount) {
+            if (!ttsArabic) {
+                android.widget.Toast.makeText(context, "ما كاين صوت عربي في الهاتف: اختار محرك Google ونزّل اللغة العربية", android.widget.Toast.LENGTH_LONG).show()
+                try { context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                catch (e: Exception) { try { context.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e2: Exception) { } }
+                return@speak
+            }
+            val voices = try { tts.voices?.filter { it.locale.language == "ar" } } catch (e: Exception) { null } ?: emptyList()
+            val v = voices.firstOrNull { it.locale.country == "DZ" } ?: voices.firstOrNull { !it.isNetworkConnectionRequired } ?: voices.firstOrNull()
+            if (v != null) tts.voice = v else tts.language = Locale("ar")
+        } else if (tts.isLanguageAvailable(Locale.FRENCH) >= TextToSpeech.LANG_AVAILABLE) {
+            tts.language = Locale.FRENCH
+        }
+        tts.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "dani")
+        val voiceName = try { tts.voice?.name } catch (e: Exception) { null } ?: tts.language.toString()
+        android.widget.Toast.makeText(context, "🔊 " + (if (ttsFallback) "محرك النظام" else "Google TTS") + " • " + voiceName, android.widget.Toast.LENGTH_SHORT).show()
+    }
+
     val speechLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.get(0)
@@ -325,12 +349,7 @@ fun ChatScreen() {
                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = if (msg.isUser) Alignment.End else Alignment.Start) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (msg.isUser) Arrangement.End else Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
                         if (!msg.isUser) {
-                            Button(onClick = { if (ttsArabic) tts.speak(msg.text.replace(Regex("[\\p{So}\\p{Cs}\\uFE0F\\u200D]"), ""), TextToSpeech.QUEUE_FLUSH, null, null)
-                                else {
-                                    android.widget.Toast.makeText(context, "ما كاين صوت عربي في الهاتف: اختار محرك Google ونزّل اللغة العربية", android.widget.Toast.LENGTH_LONG).show()
-                                    try { context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                                    catch (e: Exception) { try { context.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e2: Exception) { } }
-                                } }, modifier = Modifier.padding(end = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("speak", fontSize = 14.sp) }
+                            Button(onClick = { speakMsg(msg.text) }, modifier = Modifier.padding(end = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("speak", fontSize = 14.sp) }
                         }
                         Surface(color = if (msg.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp)) {
                             Column(modifier = Modifier.padding(12.dp)) {
