@@ -6,7 +6,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +48,25 @@ fun TasksScreen(viewModel: TasksViewModel) {
             items(filteredTasks) { task ->
                 TaskCard(task = task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) })
             }
+        }
+
+        val needsPerm by viewModel.needsExactAlarmPermission.collectAsState()
+        val ctx = LocalContext.current
+        if (needsPerm) {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissPermissionPrompt() },
+                title = { Text("إذن المنبهات") },
+                text = { Text("لتفعيل التذكير في الوقت بالضبط، فعّل إذن \"المنبهات والتذكيرات\" للتطبيق.") },
+                confirmButton = {
+                    Button(onClick = {
+                        if (Build.VERSION.SDK_INT >= 31) {
+                            ctx.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + ctx.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        }
+                        viewModel.dismissPermissionPrompt()
+                    }) { Text("فتح الإعدادات") }
+                },
+                dismissButton = { TextButton(onClick = { viewModel.dismissPermissionPrompt() }) { Text("لاحقاً") } }
+            )
         }
 
         if (showAddDialog) {
@@ -91,6 +117,18 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?) 
     var description by remember { mutableStateOf("") }
     var priority by remember { mutableStateOf("Medium") }
     var dueDate by remember { mutableStateOf<Long?>(null) }
+    val context = LocalContext.current
+    fun pickDateTime() {
+        val cal = Calendar.getInstance()
+        DatePickerDialog(context, { _, y, m, d ->
+            TimePickerDialog(context, { _, h, min ->
+                val c = Calendar.getInstance()
+                c.set(y, m, d, h, min, 0)
+                c.set(Calendar.MILLISECOND, 0)
+                dueDate = c.timeInMillis
+            }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true).show()
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+    }
 
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Add Task") }, text = {
         Column {
@@ -101,6 +139,15 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?) 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("High", "Medium", "Low").forEach { p ->
                     FilterChip(selected = priority == p, onClick = { priority = p }, label = { Text(p) })
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { pickDateTime() }) { Text(if (dueDate == null) "تذكير" else "تغيير") }
+                val d = dueDate
+                if (d != null) {
+                    Text(SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(d)), fontSize = 12.sp)
+                    TextButton(onClick = { dueDate = null }) { Text("✕") }
                 }
             }
         }

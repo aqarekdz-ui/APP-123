@@ -4,6 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dani.assistant.core.alarm.AlarmScheduler
+import com.dani.assistant.core.alarm.ScheduleResult
+import com.dani.assistant.domain.model.ReminderType
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import com.dani.assistant.data.repository.TaskRepository
 import com.dani.assistant.domain.model.PriorityLevel
 import com.dani.assistant.domain.model.Task
@@ -21,6 +25,11 @@ class TasksViewModel(
     val tasks: StateFlow<List<Task>> = taskRepository.getAllTasks()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    private val _needsExactAlarmPermission = MutableStateFlow(false)
+    val needsExactAlarmPermission: StateFlow<Boolean> = _needsExactAlarmPermission.asStateFlow()
+
+    fun dismissPermissionPrompt() { _needsExactAlarmPermission.value = false }
+
     fun addTask(title: String, description: String, priority: String, dueDate: Long?) {
         viewModelScope.launch {
             val priorityLevel = when (priority) {
@@ -37,7 +46,13 @@ class TasksViewModel(
                 status = TaskStatus.NEW
             )
             
-            taskRepository.insertTask(newTask)
+            val id = taskRepository.insertTask(newTask)
+            if (dueDate != null && dueDate > System.currentTimeMillis()) {
+                val result = taskRepository.setTaskReminder(id, title, dueDate, ReminderType.NOTIFICATION)
+                if (result is ScheduleResult.ExactAlarmPermissionRequired) {
+                    _needsExactAlarmPermission.value = true
+                }
+            }
         }
     }
 
