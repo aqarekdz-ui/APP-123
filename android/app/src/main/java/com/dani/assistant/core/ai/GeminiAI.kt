@@ -2,11 +2,9 @@ package com.dani.assistant.core.ai
 
 import com.dani.assistant.domain.model.PriorityLevel
 import com.dani.assistant.domain.model.Recurrence
-import com.google.ai.client.generativeai.GenerativeModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.google.ai.client.generativeai.type.content
 import java.util.concurrent.ConcurrentHashMap
 import com.dani.assistant.DaniApplication
 import java.io.IOException
@@ -17,6 +15,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.flow.map
@@ -40,10 +39,104 @@ class GeminiAI {
         // سلسلة بدائل مجانية: Gemini أولاً، ثم Groq ثم OpenRouter (إذا زدت مفاتيحهم من ⚙). كل مزود/نموذج له حصة مجانية مستقلة.
         private val GEMINI_MODELS = listOf("gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-2.5-flash-lite")
         private val cooldownUntil = ConcurrentHashMap<String, Long>()
-        private val modelCache = ConcurrentHashMap<String, GenerativeModel>()
+        @Volatile private var thinkingOk = true
 
-        private fun modelFor(name: String): GenerativeModel =
-            modelCache.getOrPut(name) { GenerativeModel(modelName = name, apiKey = API_KEY) }
+
+        private fun geminiJson(turns: List<Turn>, thinking: Boolean): String {
+            val o = JSONObject()
+            val first = turns.firstOrNull()
+            val rest = if (first != null && first.text == PERSONA) {
+                o.put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", PERSONA))))
+                turns.drop(1)
+            } else turns
+            val arr = JSONArray()
+            rest.forEach { t ->
+                arr.put(JSONObject().put("role", if (t.role == "model") "model" else "user")
+                    .put("parts", JSONArray().put(JSONObject().put("text", t.text))))
+            }
+            o.put("contents", arr)
+            if (thinking) o.put("generationConfig", JSONObject().put("thinkingConfig", JSONObject().put("thinkingLevel", "low")))
+            return o.toString()
+        }
+
+        private fun geminiText(obj: JSONObject): String {
+            val cands = obj.optJSONArray("candidates") ?: return ""
+            if (cands.length() == 0) return ""
+            val parts = cands.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return ""
+            val sb = StringBuilder()
+            for (i in 0 until parts.length()) {
+                val p = parts.optJSONObject(i) ?: continue
+                if (p.optBoolean("thought", false)) continue
+                sb.append(p.optString("text", ""))
+            }
+            return sb.toString()
+        }
+
+        private fun geminiOpen(model: String, turns: List<Turn>, stream: Boolean): HttpURLConnection {
+            var thinking = thinkingOk
+            while (true) {
+                val url = "https://generativelanguage.googleapis.com/v1beta/models/" + model +
+                    (if (stream) ":streamGenerateContent?alt=sse" else ":generateContent")
+                val conn = URL(url).openConnection() as HttpURLConnection
+                try {
+                    conn.requestMethod = "POST"
+                    conn.connectTimeout = 15_000
+                    conn.readTimeout = 60_000
+                    conn.doOutput = true
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.setRequestProperty("x-goog-api-key", API_KEY)
+                    conn.outputStream.use { it.write(geminiJson(turns, thinking).toByteArray(Charsets.UTF_8)) }
+                    val code = conn.responseCode
+                    if (code in 200..299) return conn
+                    val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                    conn.disconnect()
+                    if (code == 400 && thinking && err.contains("think", true)) {
+                        thinking = false
+                        thinkingOk = false
+                        continue
+                    }
+                    throw IOException("HTTP " + code + " " + err.take(300))
+                } catch (e: IOException) {
+                    conn.disconnect()
+                    throw e
+                }
+            }
+        }
+
+        private suspend fun geminiRest(model: String, turns: List<Turn>): String = withContext(Dispatchers.IO) {
+            val conn = geminiOpen(model, turns, false)
+            try {
+                val raw = conn.inputStream.bufferedReader().use { it.readText() }
+                geminiText(JSONObject(raw)).trim()
+            } finally {
+                conn.disconnect()
+            }
+        }
+
+        private fun geminiStream(model: String, turns: List<Turn>): Flow<String> = flow {
+            val conn = geminiOpen(model, turns, true)
+            try {
+                conn.inputStream.bufferedReader().use { reader ->
+                    val buf = StringBuilder()
+                    while (true) {
+                        val line = reader.readLine()
+                        if (line == null || line.isEmpty()) {
+                            if (buf.isNotEmpty()) {
+                                val t = try { geminiText(JSONObject(buf.toString())) } catch (e: Exception) { "" }
+                                buf.setLength(0)
+                                if (t.isNotEmpty()) emit(t)
+                            }
+                            if (line == null) break
+                        } else if (line.startsWith("data:")) {
+                            val p = line.substring(5).trim()
+                            if (p != "[DONE]") buf.append(p).append('\n')
+                        }
+                    }
+                }
+            } finally {
+                conn.disconnect()
+            }
+        }.flowOn(Dispatchers.IO)
 
         private fun errText(e: Throwable): String = (e.javaClass.simpleName + " " + (e.message ?: "")).lowercase()
 
@@ -52,7 +145,7 @@ class GeminiAI {
             return when {
                 "quota" in t || " 429" in t || "exhausted" in t || "rate limit" in t || "too many" in t -> 60_000L
                 "not found" in t || " 404" in t || "not supported" in t || "no longer" in t || "deprecated" in t || "decommissioned" in t -> 6 * 3_600_000L
-                " 401" in t || "invalid api key" in t -> 10 * 60_000L
+                " 401" in t || " 403" in t || "invalid api key" in t -> 10 * 60_000L
                 else -> 10_000L
             }
         }
@@ -108,14 +201,7 @@ class GeminiAI {
         /** يشغّل طلباً على backend واحد. turns: آخر عنصر هو رسالة المستخدم. يرمي استثناء إذا الرد فارغ. */
         private suspend fun run(b: Backend, turns: List<Turn>): String {
             val out = when (b.provider) {
-                "gemini" -> {
-                    val m = modelFor(b.model)
-                    if (turns.size == 1) m.generateContent(turns[0].text).text?.trim().orEmpty()
-                    else {
-                        val hist = turns.dropLast(1).map { t -> content(t.role) { text(t.text) } }
-                        m.startChat(history = hist).sendMessage(turns.last().text).text?.trim().orEmpty()
-                    }
-                }
+                "gemini" -> geminiRest(b.model, turns)
                 else -> {
                     val ctx = DaniApplication.instance
                     val msgs = mutableListOf<Turn>()
@@ -200,11 +286,7 @@ class GeminiAI {
             val sb = StringBuilder()
             try {
                 if (b.provider == "gemini") {
-                    val hist = history.map { t -> content(t.role) { text(t.text) } }
-                    modelFor(b.model).startChat(history = hist).sendMessageStream(prompt).collect { r ->
-                        val t = r.text ?: ""
-                        if (t.isNotEmpty()) { sb.append(t); emit(t) }
-                    }
+                    geminiStream(b.model, turns).collect { t -> sb.append(t); emit(t) }
                 } else {
                     val r = run(b, turns) // غير تدفقي: الرد كامل مرة وحدة
                     sb.append(r)
