@@ -56,6 +56,37 @@ class TasksViewModel(
         }
     }
 
+    fun updateTask(task: Task, title: String, description: String, priority: String, dueDate: Long?) {
+        viewModelScope.launch {
+            val newPriority = if (priorityLabel(task.priority) == priority) task.priority else when (priority) {
+                "High" -> PriorityLevel.IMPORTANT
+                "Low" -> PriorityLevel.LOW
+                else -> PriorityLevel.MEDIUM
+            }
+            val updated = task.copy(
+                title = title,
+                description = description.ifEmpty { null },
+                priority = newPriority,
+                dueDate = dueDate
+            )
+            taskRepository.updateTask(updated)
+
+            if (dueDate != task.dueDate && !task.isCompleted) {
+                if (dueDate != null && dueDate > System.currentTimeMillis()) {
+                    val result = taskRepository.setTaskReminder(task.id, title, dueDate, ReminderType.NOTIFICATION)
+                    if (result is ScheduleResult.ExactAlarmPermissionRequired) {
+                        _needsExactAlarmPermission.value = true
+                    }
+                } else {
+                    taskRepository.cancelTaskReminder(task.id)
+                }
+            } else if (title != task.title && dueDate != null && dueDate > System.currentTimeMillis() && !task.isCompleted) {
+                // العنوان تبدّل: حدّث نص التذكير
+                taskRepository.setTaskReminder(task.id, title, dueDate, ReminderType.NOTIFICATION)
+            }
+        }
+    }
+
     fun toggleTask(task: Task) {
         viewModelScope.launch {
             taskRepository.toggleTaskCompleted(task)

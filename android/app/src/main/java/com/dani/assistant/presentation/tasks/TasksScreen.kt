@@ -1,5 +1,6 @@
 package com.dani.assistant.presentation.tasks
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,6 +28,7 @@ import java.util.*
 fun TasksScreen(viewModel: TasksViewModel) {
     val tasks by viewModel.tasks.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var editingTask by remember { mutableStateOf<Task?>(null) }
     var filterPriority by remember { mutableStateOf("All") }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -46,7 +48,7 @@ fun TasksScreen(viewModel: TasksViewModel) {
                 priorityLabel(it.priority) == filterPriority
             }
             items(filteredTasks) { task ->
-                TaskCard(task = task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) })
+                TaskCard(task = task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) }, onEdit = { editingTask = task })
             }
         }
 
@@ -69,6 +71,18 @@ fun TasksScreen(viewModel: TasksViewModel) {
             )
         }
 
+        val editing = editingTask
+        if (editing != null) {
+            AddTaskDialog(
+                onDismiss = { editingTask = null },
+                onAdd = { title, desc, priority, dueDate ->
+                    viewModel.updateTask(editing, title, desc, priority, dueDate)
+                    editingTask = null
+                },
+                initial = editing
+            )
+        }
+
         if (showAddDialog) {
             AddTaskDialog(onDismiss = { showAddDialog = false }, onAdd = { title, desc, priority, dueDate ->
                 viewModel.addTask(title, desc, priority, dueDate)
@@ -78,7 +92,7 @@ fun TasksScreen(viewModel: TasksViewModel) {
     }
 }
 
-private fun priorityLabel(p: PriorityLevel): String = when (p) {
+internal fun priorityLabel(p: PriorityLevel): String = when (p) {
     PriorityLevel.URGENT_CRITICAL, PriorityLevel.IMPORTANT -> "High"
     PriorityLevel.LOW, PriorityLevel.SOMEDAY -> "Low"
     PriorityLevel.MEDIUM -> "Medium"
@@ -86,7 +100,7 @@ private fun priorityLabel(p: PriorityLevel): String = when (p) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
+fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit = {}) {
     val priorityName = priorityLabel(task.priority)
     val priorityColor = when (priorityName) {
         "High" -> MaterialTheme.colorScheme.error
@@ -97,7 +111,7 @@ fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (task.isCompleted) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface)) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = task.isCompleted, onCheckedChange = { onToggle() })
-            Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+            Column(modifier = Modifier.weight(1f).padding(start = 8.dp).clickable { onEdit() }) {
                 Text(text = task.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, style = if (task.isCompleted) MaterialTheme.typography.bodyLarge.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough) else MaterialTheme.typography.bodyLarge)
                 if (!task.description.isNullOrEmpty()) Text(task.description, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                 Row(modifier = Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -112,11 +126,11 @@ fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?) -> Unit) {
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var priority by remember { mutableStateOf("Medium") }
-    var dueDate by remember { mutableStateOf<Long?>(null) }
+fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?) -> Unit, initial: Task? = null) {
+    var title by remember { mutableStateOf(initial?.title ?: "") }
+    var description by remember { mutableStateOf(initial?.description ?: "") }
+    var priority by remember { mutableStateOf(if (initial != null) priorityLabel(initial.priority) else "Medium") }
+    var dueDate by remember { mutableStateOf(initial?.dueDate) }
     val context = LocalContext.current
     fun pickDateTime() {
         val cal = Calendar.getInstance()
@@ -130,7 +144,7 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?) 
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
     }
 
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Add Task") }, text = {
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (initial == null) "Add Task" else "Edit Task") }, text = {
         Column {
             TextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(8.dp))
@@ -151,5 +165,5 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?) 
                 }
             }
         }
-    }, confirmButton = { Button(onClick = { if (title.isNotBlank()) onAdd(title, description, priority, dueDate) }) { Text("Add") } }, dismissButton = { Button(onClick = onDismiss) { Text("Cancel") } })
+    }, confirmButton = { Button(onClick = { if (title.isNotBlank()) onAdd(title, description, priority, dueDate) }) { Text(if (initial == null) "Add" else "Save") } }, dismissButton = { Button(onClick = onDismiss) { Text("Cancel") } })
 }
