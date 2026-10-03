@@ -44,12 +44,8 @@ sealed class Screen(
     )
 
     companion object {
-        val bottomNavItems = listOf(
-            Dashboard,
-            Tasks,
-            Calendar,
-            Memory,
-            Dani
-        )
+        // getter (مش حقل مخزّن): يتجنب دورة التهيئة بين Screen وكائناته الفرعية اللي كانت تعطي null
+        val bottomNavItems: List<Screen>
+            get() = listOf(Dashboard, Tasks, Calendar, Memory, Dani)
     }
 }
