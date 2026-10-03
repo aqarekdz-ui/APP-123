@@ -71,4 +71,6 @@ android {
     // Gemini AI
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 }

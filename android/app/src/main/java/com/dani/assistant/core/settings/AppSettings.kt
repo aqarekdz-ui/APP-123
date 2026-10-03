@@ -22,6 +22,10 @@ object AppSettings {
     fun digestMinutes(ctx: Context): Int = prefs(ctx).getInt("digest_min", 8 * 60)
     fun setDigestMinutes(ctx: Context, m: Int) = prefs(ctx).edit().putInt("digest_min", m).apply()
 
+    /** قفل التطبيق بالبصمة أو قفل شاشة الهاتف. */
+    fun lockEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("app_lock", false)
+    fun setLockEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("app_lock", v).apply()
+
     /** البحث في الملف المحلي أولاً قبل سؤال الذكاء الاصطناعي. */
     fun localFirst(ctx: Context): Boolean = prefs(ctx).getBoolean(LOCAL_FIRST, true)
     fun setLocalFirst(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean(LOCAL_FIRST, v).apply()

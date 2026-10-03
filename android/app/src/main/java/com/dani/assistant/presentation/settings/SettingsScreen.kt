@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dani.assistant.core.ai.ProviderSettings
 import com.dani.assistant.core.knowledge.KnowledgeBase
+import com.dani.assistant.core.security.AppLock
 import com.dani.assistant.core.settings.AppSettings
 
 @Composable
@@ -47,6 +48,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var confirmClearKnowledge by remember { mutableStateOf(false) }
     var confirmClearChat by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf<String?>(null) }
+    var lockOn by remember { mutableStateOf(AppSettings.lockEnabled(context)) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
@@ -91,6 +93,31 @@ fun SettingsScreen(onBack: () -> Unit) {
                         MorningDigest.schedule(context)
                     }, digestMin / 60, digestMin % 60, true).show()
                 }) { Text("تغيير") }
+            }
+        }
+
+        // ---- الأمان ----
+        Text("الأمان", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        SettingSwitch(
+            title = "قفل التطبيق",
+            desc = "يطلب البصمة أو قفل شاشة الهاتف كل ما تفتح DANI (وبعد غياب أكثر من 30 ثانية).",
+            checked = lockOn
+        ) { want ->
+            val act = AppLock.findActivity(context)
+            if (!want) {
+                lockOn = false
+                AppSettings.setLockEnabled(context, false)
+                msg = "تم إيقاف القفل"
+            } else if (act == null || !AppLock.available(context)) {
+                msg = "الهاتف ما فيهش بصمة ولا قفل شاشة مفعّل. فعّل واحد من إعدادات الهاتف ثم عاود."
+            } else {
+                AppLock.authenticate(act,
+                    onSuccess = {
+                        lockOn = true
+                        AppSettings.setLockEnabled(context, true)
+                        msg = "تم تفعيل القفل ✅"
+                    },
+                    onFail = { m -> msg = m })
             }
         }
 
