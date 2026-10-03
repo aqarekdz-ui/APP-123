@@ -185,8 +185,12 @@ fun ChatScreen() {
                     ai.sendMessageStream(inputText, MemoryStore.getAll(context)).collect { chunk -> sb.append(chunk); setReply(sb.toString()) }
                 } catch (e: Exception) { if (sb.isEmpty()) setReply("Error") }
                 if (sb.isEmpty()) setReply("...")
-                val t = ai.extractTask(inputText)
+                val known = MemoryStore.getAll(context)
+                val (t, facts) = ai.analyze(inputText, known)
                 if (t != null) suggestedTask = t
+                facts.forEach { MemoryStore.add(context, it) }
+                val all = MemoryStore.getAll(context)
+                if (all.size > 40) ai.consolidate(all)?.let { MemoryStore.replaceAll(context, it) }
             } } }, shape = RoundedCornerShape(24.dp)) { Text("Send") }
         }
         TextButton(onClick = { messages = emptyList(); prefs.edit().clear().apply() }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Clear chat", fontSize = 12.sp) }

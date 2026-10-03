@@ -35,7 +35,7 @@ fun MemoryScreen() {
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("الذاكرة", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("DANI يستعمل هذه المعلومات في ردوده. في الشات اكتب \"تذكر ...\" لإضافة معلومة.", color = MaterialTheme.colorScheme.outline)
+        Text("DANI يتعلم منك تلقائياً من المحادثات ويستعمل هذه المعلومات في ردوده. احذف أي معلومة ما تحبهاش، أو اكتب في الشات \"تذكر ...\".", color = MaterialTheme.colorScheme.outline)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             TextField(
                 value = input,

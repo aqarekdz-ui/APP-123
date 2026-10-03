@@ -33,4 +33,6 @@ object MemoryStore {
     fun remove(context: Context, fact: String) {
         save(context, getAll(context).filter { it != fact })
     }
+
+    fun replaceAll(context: Context, items: List<String>) = save(context, items.distinct())
 }

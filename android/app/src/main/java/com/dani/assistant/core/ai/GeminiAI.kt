@@ -3,6 +3,8 @@ package com.dani.assistant.core.ai
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import kotlinx.coroutines.flow.Flow
+import org.json.JSONArray
+import org.json.JSONObject
 import kotlinx.coroutines.flow.map
 
 class GeminiAI {
@@ -29,6 +31,39 @@ class GeminiAI {
                 "أرجع عنواناً قصيراً للمهمة فقط (بدون أي شرح). وإلا أرجع الكلمة NONE فقط.\n\nالرسالة: " + msg
             val out = model.generateContent(prompt).text?.trim()
             if (out.isNullOrBlank() || out.uppercase().contains("NONE")) null else out.take(120)
+        } catch (e: Exception) { null }
+    }
+
+    private fun cleanJson(t: String): String = t.replace("```json", "").replace("```", "").trim()
+
+    // One call: extracts a task (if any) and new durable facts about the user
+    suspend fun analyze(msg: String, known: List<String>): Pair<String?, List<String>> {
+        return try {
+            val prompt = "حلل رسالة المستخدم وأرجع JSON فقط بهذا الشكل بدون أي نص آخر: " +
+                "{\"task\": \"عنوان قصير للمهمة أو التذكير أو الموعد إن وجد وإلا null\", \"facts\": [\"...\"]}. " +
+                "facts = معلومات جديدة ودائمة عن المستخدم (تفضيلات، عادات، عمل، عائلة، اهتمامات، أسلوب يحبه في التعامل)، " +
+                "جمل قصيرة (أقل من 100 حرف) وبصيغة الغائب، بحد أقصى 3. " +
+                "لا تحفظ كلمات السر ولا أرقام الهويات أو البطاقات ولا الحالة المزاجية العابرة ولا ما هو موجود أصلاً في المعلومات المعروفة. " +
+                "إذا لا توجد معلومة جديدة أرجع مصفوفة فارغة.\n\n" +
+                "المعلومات المعروفة:\n" + (if (known.isEmpty()) "(لا شيء)" else known.joinToString("\n") { "- " + it }) +
+                "\n\nرسالة المستخدم: " + msg
+            val out = cleanJson(model.generateContent(prompt).text ?: return Pair(null, emptyList()))
+            val obj = JSONObject(out)
+            val task = obj.optString("task", "").trim().let { if (it.isBlank() || it.equals("null", true)) null else it.take(120) }
+            val arr: JSONArray? = obj.optJSONArray("facts")
+            val facts = if (arr == null) emptyList() else List(arr.length()) { arr.optString(it).trim() }.filter { it.isNotBlank() && it.length <= 150 }.take(3)
+            Pair(task, facts)
+        } catch (e: Exception) { Pair(null, emptyList()) }
+    }
+
+    // Merge duplicates / near-duplicates when memory grows too large
+    suspend fun consolidate(facts: List<String>): List<String>? {
+        return try {
+            val prompt = "ادمج هذه المعلومات عن المستخدم: احذف التكرار واجمع المتشابه وأبقِ كل ما هو مهم، " +
+                "بحد أقصى 30 جملة قصيرة. أرجع JSON array فقط.\n\n" + facts.joinToString("\n") { "- " + it }
+            val arr = JSONArray(cleanJson(model.generateContent(prompt).text ?: return null))
+            val list = List(arr.length()) { arr.optString(it).trim() }.filter { it.isNotBlank() }
+            if (list.isEmpty()) null else list
         } catch (e: Exception) { null }
     }
 }
