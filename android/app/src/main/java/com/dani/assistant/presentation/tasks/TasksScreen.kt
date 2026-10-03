@@ -66,7 +66,7 @@ fun TaskCard(task: TaskItem, onToggle: () -> Unit, onDelete: () -> Unit) {
                     if (task.dueDate != null) Text(SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(task.dueDate)), fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
                 }
             }
-            IconButton(onClick = onDelete) { Text("🗑", fontSize = 18.sp) }
+            IconButton(onClick = onDelete) { Text("", fontSize = 18.sp) }
         }
     }
 }
