@@ -273,7 +273,7 @@ fun ChatScreen() {
             ttsArabic = ok != null
         }
     }
-    DisposableEffect(tts) { onDispose { tts.stop(); tts.shutdown(); com.dani.assistant.core.tts.AzureTts.stop() } }
+    DisposableEffect(tts) { onDispose { tts.stop(); tts.shutdown(); com.dani.assistant.core.tts.TtsPlayer.stop() } }
 
     // قراءة الرسالة: اللغة تتحدد حسب الحروف (عربي → صوت عربي، لاتيني → فرنسي) ويتحط الصوت صراحةً قبل كل قراءة
     val speakLocal: (String) -> Unit = speak@{ raw ->
@@ -316,11 +316,13 @@ fun ChatScreen() {
     val speakMsg: (String) -> Unit = { raw ->
         val clean = raw.replace(Regex("[\\p{So}\\p{Cs}\\uFE0F\\u200D*#_`]"), "").trim()
         val isAr = clean.count { it in '\u0600'..'\u06FF' } >= clean.count { it in 'A'..'Z' || it in 'a'..'z' }
-        if (clean.isNotEmpty() && isAr && com.dani.assistant.core.tts.AzureTts.enabled(context)) {
+        val useAzure = com.dani.assistant.core.tts.AzureTts.enabled(context)
+        val useEdge = com.dani.assistant.core.tts.EdgeTts.enabled(context)
+        if (clean.isNotEmpty() && isAr && (useAzure || useEdge)) {
             scope.launch {
-                val err = com.dani.assistant.core.tts.AzureTts.speak(context, clean)
+                val err = if (useAzure) com.dani.assistant.core.tts.AzureTts.speak(context, clean) else com.dani.assistant.core.tts.EdgeTts.speak(context, clean)
                 if (err != null) {
-                    android.widget.Toast.makeText(context, "Azure: " + err + " — نرجع لصوت الهاتف", android.widget.Toast.LENGTH_LONG).show()
+                    android.widget.Toast.makeText(context, (if (useAzure) "Azure: " else "Edge: ") + err + " — نرجع لصوت الهاتف", android.widget.Toast.LENGTH_LONG).show()
                     speakLocal(raw)
                 }
             }

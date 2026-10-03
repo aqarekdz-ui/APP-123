@@ -107,8 +107,23 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
 
         // ---- الصوت الجزائري ----
-        Text("الصوت الجزائري (Azure)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text("صوت الهاتف يقرا بالعربية الفصحى فقط. باش يقرا بلهجة جزائرية (ar-DZ) دير حساب مجاني في Azure ← Speech ← Keys وحط المفتاح والمنطقة هنا. فارغ = صوت الهاتف.", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+        Text("الصوت الجزائري", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        var edgeOn by remember { mutableStateOf(com.dani.assistant.core.tts.EdgeTts.enabled(context)) }
+        var edgeVoice by remember { mutableStateOf(com.dani.assistant.core.tts.EdgeTts.voice(context)) }
+        SettingSwitch(
+            title = "صوت جزائري مجاني (Edge)",
+            desc = "يقرا الردود بلهجة جزائرية (ar-DZ) بدون مفتاح ولا حساب، يحتاج إنترنت. خدمة غير رسمية من Microsoft، وإذا فشلت يرجع لصوت الهاتف.",
+            checked = edgeOn
+        ) { edgeOn = it; com.dani.assistant.core.tts.EdgeTts.setEnabled(context, it) }
+        if (edgeOn) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("ar-DZ-AminaNeural" to "آمينة (امرأة)", "ar-DZ-IsmaelNeural" to "إسماعيل (رجل)").forEach { (v, label) ->
+                    val pick = { edgeVoice = v; com.dani.assistant.core.tts.EdgeTts.setVoice(context, v) }
+                    if (edgeVoice == v) Button(onClick = pick) { Text(label) } else OutlinedButton(onClick = pick) { Text(label) }
+                }
+            }
+        }
+        Text("اختياري: مفتاح Azure (أولوية على Edge إذا انكتب)", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
         var azKey by remember { mutableStateOf(com.dani.assistant.core.tts.AzureTts.key(context)) }
         var azRegion by remember { mutableStateOf(com.dani.assistant.core.tts.AzureTts.region(context)) }
         var azVoice by remember { mutableStateOf(com.dani.assistant.core.tts.AzureTts.voice(context)) }

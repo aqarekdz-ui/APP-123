@@ -1,7 +1,6 @@
 package com.dani.assistant.core.tts
 
 import android.content.Context
-import android.media.MediaPlayer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -23,12 +22,7 @@ object AzureTts {
     fun setVoice(c: Context, v: String) = p(c).edit().putString("azure_voice", v).apply()
     fun enabled(c: Context) = key(c).isNotBlank()
 
-    private var player: MediaPlayer? = null
-
-    fun stop() {
-        try { player?.release() } catch (e: Exception) { }
-        player = null
-    }
+    fun stop() = TtsPlayer.stop()
 
     private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -64,18 +58,6 @@ object AzureTts {
         } catch (e: Exception) {
             return e.message ?: e.javaClass.simpleName
         }
-        return try {
-            withContext(Dispatchers.Main) {
-                stop()
-                val mp = MediaPlayer()
-                mp.setDataSource(file.absolutePath)
-                mp.setOnPreparedListener { it.start() }
-                mp.setOnCompletionListener { it.release(); if (player === it) player = null }
-                mp.setOnErrorListener { m, _, _ -> try { m.release() } catch (e: Exception) { }; if (player === m) player = null; true }
-                player = mp
-                mp.prepareAsync()
-            }
-            null
-        } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
+        return TtsPlayer.play(file)
     }
 }
