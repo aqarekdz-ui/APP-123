@@ -27,13 +27,52 @@ data class ImportResult(
     val facts: Int,
     val knowledge: Int,
     val secrets: Int,
-    val secretsSkipped: Boolean
+    val secretsSkipped: Boolean,
+    val chat: Int = 0
 )
 
-/** نسخة احتياطية موحّدة: مهام + معلومات + معرفة + أسرار (مشفّرة بكلمة سر النسخة، اختيارية). */
+/** نسخة احتياطية موحّدة: مهام + معلومات + معرفة + رسائل الشات + أسرار (مشفّرة بكلمة سر النسخة، اختيارية). */
 object BackupManager {
     private const val VERSION = 1
     private const val ITERATIONS = 120_000
+    // نفس prefs ومفتاح ChatScreen (صيغة JSON: t,u,ts,m)
+    private const val CHAT_PREFS = "chat"
+    private const val CHAT_KEY = "msg_json"
+
+    private fun readChat(ctx: Context): JSONArray {
+        val raw = ctx.getSharedPreferences(CHAT_PREFS, Context.MODE_PRIVATE).getString(CHAT_KEY, null)
+        return try {
+            if (raw.isNullOrEmpty()) JSONArray() else JSONArray(raw)
+        } catch (e: Exception) { JSONArray() }
+    }
+
+    /** دمج رسائل النسخة مع الموجودة: يتخطى المكرر (نفس الوقت+النص+المرسل) ويرتّب بالوقت. */
+    private fun mergeChat(ctx: Context, incoming: JSONArray): Int {
+        if (incoming.length() == 0) return 0
+        val current = readChat(ctx)
+        val seen = HashSet<String>()
+        val all = ArrayList<JSONObject>()
+        for (i in 0 until current.length()) {
+            val o = current.optJSONObject(i) ?: continue
+            seen.add(o.optLong("ts").toString() + "|" + o.optBoolean("u") + "|" + o.optString("t"))
+            all.add(o)
+        }
+        var added = 0
+        for (i in 0 until incoming.length()) {
+            val o = incoming.optJSONObject(i) ?: continue
+            if (!o.has("t")) continue
+            val key = o.optLong("ts").toString() + "|" + o.optBoolean("u") + "|" + o.optString("t")
+            if (!seen.add(key)) continue
+            all.add(o)
+            added++
+        }
+        if (added == 0) return 0
+        all.sortBy { it.optLong("ts") }
+        val out = JSONArray()
+        all.forEach { out.put(it) }
+        ctx.getSharedPreferences(CHAT_PREFS, Context.MODE_PRIVATE).edit().putString(CHAT_KEY, out.toString()).apply()
+        return added
+    }
 
     private fun deriveKey(pass: String, salt: ByteArray): SecretKeySpec {
         val spec = PBEKeySpec(pass.toCharArray(), salt, ITERATIONS, 256)
@@ -101,6 +140,7 @@ object BackupManager {
             .put("tasks", tasksArr)
             .put("facts", JSONArray(MemoryStore.getAll(ctx)))
             .put("knowledge", knowledgeArr)
+            .put("chat", readChat(ctx))
         if (pass.isNotEmpty()) {
             val secrets = SecretStore.getAll(ctx)
             if (secrets.isNotEmpty()) {
@@ -160,6 +200,9 @@ object BackupManager {
         }
         val knowledgeAdded = KnowledgeBase.importEntries(ctx, entries)
 
+        // رسائل الشات (نسخ قديمة ما فيهاش "chat" → 0)
+        val chatAdded = mergeChat(ctx, root.optJSONArray("chat") ?: JSONArray())
+
         // الأسرار
         var secretsAdded = 0
         var secretsSkipped = false
@@ -174,6 +217,6 @@ object BackupManager {
                 secretsAdded = SecretStore.getAll(ctx).size - before
             }
         }
-        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped)
+        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped, chatAdded)
     }
 }

@@ -89,7 +89,7 @@ fun MemoryScreen() {
             try {
                 val r = withContext(Dispatchers.IO) { BackupManager.import(context, json, pass) }
                 refreshAll()
-                backupMsg = "تم الاستيراد: " + r.tasks + " مهمة، " + r.facts + " معلومة، " + r.knowledge + " معرفة، " + r.secrets + " سر" +
+                backupMsg = "تم الاستيراد: " + r.tasks + " مهمة، " + r.facts + " معلومة، " + r.knowledge + " معرفة، " + r.chat + " رسالة شات، " + r.secrets + " سر" +
                     (if (r.secretsSkipped) " (الأسرار تخطّيناها: كلمة سر النسخة ناقصة أو غلط)" else "")
             } catch (e: Exception) {
                 backupMsg = "فشل الاستيراد: " + (e.message ?: "")
@@ -136,7 +136,7 @@ fun MemoryScreen() {
                 title = { Text("تصدير نسخة احتياطية") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("المهام والمعلومات والمعرفة تتصدّر دايماً. الأسرار تتضاف مشفّرة فقط إذا كتبت كلمة سر للنسخة (تحتاجها وقت الاستيراد).", fontSize = 12.sp)
+                        Text("المهام والمعلومات والمعرفة ورسائل الشات تتصدّر دايماً (الشات يتحفظ غير مشفّر في الملف). الأسرار تتضاف مشفّرة فقط إذا كتبت كلمة سر للنسخة (تحتاجها وقت الاستيراد).", fontSize = 12.sp)
                         TextField(
                             value = exportPass,
                             onValueChange = { exportPass = it },
