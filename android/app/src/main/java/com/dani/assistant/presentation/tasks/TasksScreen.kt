@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Intent
@@ -31,6 +33,8 @@ fun TasksScreen(viewModel: TasksViewModel) {
     var showAddDialog by remember { mutableStateOf(false) }
     var editingTask by remember { mutableStateOf<Task?>(null) }
     var filterPriority by remember { mutableStateOf("All") }
+    var query by remember { mutableStateOf("") }
+    var pendingDelete by remember { mutableStateOf<Task?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -44,13 +48,66 @@ fun TasksScreen(viewModel: TasksViewModel) {
             }
         }
 
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            placeholder = { Text("🔍 بحث في المهام") },
+            singleLine = true,
+            trailingIcon = { if (query.isNotEmpty()) TextButton(onClick = { query = "" }) { Text("✕") } }
+        )
+
+        val q = query.trim()
+        val filteredTasks = tasks.filter { t ->
+            (filterPriority == "All" || priorityLabel(t.priority) == filterPriority) &&
+                (q.isEmpty() || t.title.contains(q, ignoreCase = true) || (t.description ?: "").contains(q, ignoreCase = true))
+        }
+        if (filteredTasks.isEmpty() && (q.isNotEmpty() || tasks.isNotEmpty())) {
+            Text("ما لقيت حتى مهمة", color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(8.dp))
+        }
+        Text("← سحب لليمين: إنجاز | سحب لليسار: حذف", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(bottom = 4.dp))
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val filteredTasks = if (filterPriority == "All") tasks else tasks.filter { 
-                priorityLabel(it.priority) == filterPriority
+            items(filteredTasks, key = { it.id }) { task ->
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = { value ->
+                        when (value) {
+                            SwipeToDismissBoxValue.StartToEnd -> { viewModel.toggleTask(task); false }
+                            SwipeToDismissBoxValue.EndToStart -> { pendingDelete = task; false }
+                            else -> false
+                        }
+                    }
+                )
+                SwipeToDismissBox(
+                    state = dismissState,
+                    backgroundContent = {
+                        val dir = dismissState.dismissDirection
+                        val bg = when (dir) {
+                            SwipeToDismissBoxValue.StartToEnd -> Color(0xFF2E7D32)
+                            SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error
+                            else -> Color.Transparent
+                        }
+                        Box(
+                            modifier = Modifier.fillMaxSize().background(bg).padding(horizontal = 20.dp),
+                            contentAlignment = if (dir == SwipeToDismissBoxValue.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd
+                        ) {
+                            Text(if (dir == SwipeToDismissBoxValue.StartToEnd) "✔" else if (dir == SwipeToDismissBoxValue.EndToStart) "🗑" else "", fontSize = 22.sp, color = Color.White)
+                        }
+                    }
+                ) {
+                    TaskCard(task = task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) }, onEdit = { editingTask = task })
+                }
             }
-            items(filteredTasks) { task ->
-                TaskCard(task = task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) }, onEdit = { editingTask = task })
-            }
+        }
+
+        val toDelete = pendingDelete
+        if (toDelete != null) {
+            AlertDialog(
+                onDismissRequest = { pendingDelete = null },
+                title = { Text("حذف المهمة؟") },
+                text = { Text(toDelete.title) },
+                confirmButton = { Button(onClick = { viewModel.deleteTask(toDelete); pendingDelete = null }) { Text("حذف") } },
+                dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("إلغاء") } }
+            )
         }
 
         val needsPerm by viewModel.needsExactAlarmPermission.collectAsState()
