@@ -7,7 +7,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.dani.assistant.DaniApplication
-import com.dani.assistant.presentation.placeholder.PlaceholderScreen
 import com.dani.assistant.presentation.calendar.CalendarScreen
 import com.dani.assistant.presentation.chat.ChatScreen
 import com.dani.assistant.presentation.memory.MemoryScreen
