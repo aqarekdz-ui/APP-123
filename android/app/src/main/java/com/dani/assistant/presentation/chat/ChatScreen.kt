@@ -225,17 +225,24 @@ fun ChatScreen() {
         if (messages.isNotEmpty()) saveMessages(prefs, messages)
     }
 
+    // محرك Google TTS أولاً (سامسونغ الافتراضي ما فيهش عربي فيقرا بالإنجليزية)، وإذا مش موجود المحرك الافتراضي
     var ttsReady by remember { mutableStateOf(false) }
-    val tts = remember { TextToSpeech(context) { st -> if (st == TextToSpeech.SUCCESS) ttsReady = true } }
-    LaunchedEffect(ttsReady) {
+    var ttsArabic by remember { mutableStateOf(false) }
+    var ttsFallback by remember { mutableStateOf(false) }
+    val tts = remember(ttsFallback) {
+        TextToSpeech(context, { st ->
+            if (st == TextToSpeech.SUCCESS) ttsReady = true
+            else if (!ttsFallback) ttsFallback = true
+        }, if (ttsFallback) null else "com.google.android.tts")
+    }
+    LaunchedEffect(tts, ttsReady) {
         if (ttsReady) {
             val cands = listOf(Locale("ar", "DZ"), Locale("ar"), Locale("ar", "SA"), Locale("ar", "EG"))
-            val ok = cands.firstOrNull { tts.isLanguageAvailable(it) >= TextToSpeech.LANG_AVAILABLE }
-            if (ok != null) tts.language = ok
-            else android.widget.Toast.makeText(context, "ما كاين حتى صوت عربي: ثبّت بيانات الصوت العربي في إعدادات تحويل النص إلى كلام", android.widget.Toast.LENGTH_LONG).show()
+            val ok = cands.firstOrNull { tts.isLanguageAvailable(it) >= TextToSpeech.LANG_AVAILABLE && tts.setLanguage(it) >= TextToSpeech.LANG_AVAILABLE }
+            ttsArabic = ok != null
         }
     }
-    DisposableEffect(Unit) { onDispose { tts.stop(); tts.shutdown() } }
+    DisposableEffect(tts) { onDispose { tts.stop(); tts.shutdown() } }
 
     val speechLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
@@ -287,7 +294,12 @@ fun ChatScreen() {
                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = if (msg.isUser) Alignment.End else Alignment.Start) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (msg.isUser) Arrangement.End else Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
                         if (!msg.isUser) {
-                            Button(onClick = { tts.speak(msg.text, TextToSpeech.QUEUE_FLUSH, null, null) }, modifier = Modifier.padding(end = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("speak", fontSize = 14.sp) }
+                            Button(onClick = { if (ttsArabic) tts.speak(msg.text.replace(Regex("[\\p{So}\\p{Cs}\\uFE0F\\u200D]"), ""), TextToSpeech.QUEUE_FLUSH, null, null)
+                                else {
+                                    android.widget.Toast.makeText(context, "ما كاين صوت عربي في الهاتف: اختار محرك Google ونزّل اللغة العربية", android.widget.Toast.LENGTH_LONG).show()
+                                    try { context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                                    catch (e: Exception) { try { context.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e2: Exception) { } }
+                                } }, modifier = Modifier.padding(end = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Text("speak", fontSize = 14.sp) }
                         }
                         Surface(color = if (msg.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp)) {
                             Column(modifier = Modifier.padding(12.dp)) {

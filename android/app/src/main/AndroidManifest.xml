@@ -25,6 +25,14 @@
     <!-- Android 13+: يُمنح تلقائياً عند التثبيت (استعمال شخصي، خارج Play) فتتجدول التذكيرات بدقة بدون خطوة يدوية -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
+    <!-- Android 11+: رؤية محركات TTS المثبتة (Google TTS) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <package android:name="com.google.android.tts" />
+    </queries>
+
     <application
         android:name=".DaniApplication"
         android:allowBackup="true"
