@@ -22,8 +22,8 @@
     <!-- إلزامي: تشغيل الاهتزاز مع رنين المنبه لتنبيه المستخدم -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- اختياري مستقبلاً: USE_EXACT_ALARM لتطبيقات المنبهات المتخصصة في متجر Play -->
-    <!-- <uses-permission android:name="android.permission.USE_EXACT_ALARM" /> -->
+    <!-- Android 13+: يُمنح تلقائياً عند التثبيت (استعمال شخصي، خارج Play) فتتجدول التذكيرات بدقة بدون خطوة يدوية -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
     <application
         android:name=".DaniApplication"

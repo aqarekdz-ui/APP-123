@@ -7,6 +7,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
+import com.dani.assistant.core.web.WebSearch
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -90,12 +91,29 @@ private suspend fun createTaskFromCommand(cmd: ParsedTask): String {
         if (cmd.recurrence != Recurrence.NONE) sb.append("\n🔁 ").append(cmd.recurrence.arabic)
         val r = repo.setTaskReminder(id, cmd.title, due, ReminderType.NOTIFICATION)
         if (r is ScheduleResult.ExactAlarmPermissionRequired) {
-            sb.append("\n⚠️ فعّل إذن المنبهات من تبويب المهام باش يرن التذكير في وقته")
+            sb.append("\n⚠️ التذكير مجدول لكن تقريبي: إذن المنبهات الدقيقة مش مفعّل (تبويب المهام)")
         }
     } else {
         sb.append("\n(بدون وقت تذكير)")
     }
     return sb.toString()
+}
+
+private val SEARCH_PREFIXES = listOf("ابحث لي عن", "ابحث عن", "ابحث", "دور لي على", "دور على", "قوقل", "جوجل", "سيرش", "search for", "search", "google", "recherche", "cherche")
+private val SEARCH_HINTS = listOf("اخر اخبار", "آخر أخبار", "آخر اخبار", "اخبار اليوم", "أخبار اليوم", "latest news", "news about")
+
+/** يرجع نص البحث إذا الرسالة طلب بحث على الإنترنت، وإلا null. */
+private fun searchQueryOf(text: String): String? {
+    val t = text.trim()
+    val low = t.lowercase()
+    for (p in SEARCH_PREFIXES) {
+        if (low.startsWith(p)) {
+            val q = t.substring(p.length).trim().trimStart(':', '-', '،').trim()
+            return if (q.length >= 2) q else null
+        }
+    }
+    if (SEARCH_HINTS.any { low.contains(it) }) return t
+    return null
 }
 
 private const val KEY_JSON = "msg_json"
@@ -207,8 +225,16 @@ fun ChatScreen() {
         if (messages.isNotEmpty()) saveMessages(prefs, messages)
     }
 
-    val tts = remember { TextToSpeech(context, null) }
-    LaunchedEffect(Unit) { tts.language = Locale("ar") }
+    var ttsReady by remember { mutableStateOf(false) }
+    val tts = remember { TextToSpeech(context) { st -> if (st == TextToSpeech.SUCCESS) ttsReady = true } }
+    LaunchedEffect(ttsReady) {
+        if (ttsReady) {
+            val cands = listOf(Locale("ar", "DZ"), Locale("ar"), Locale("ar", "SA"), Locale("ar", "EG"))
+            val ok = cands.firstOrNull { tts.isLanguageAvailable(it) >= TextToSpeech.LANG_AVAILABLE }
+            if (ok != null) tts.language = ok
+            else android.widget.Toast.makeText(context, "ما كاين حتى صوت عربي: ثبّت بيانات الصوت العربي في إعدادات تحويل النص إلى كلام", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
     DisposableEffect(Unit) { onDispose { tts.stop(); tts.shutdown() } }
 
     val speechLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
@@ -308,10 +334,11 @@ fun ChatScreen() {
                         }
                     }
                 }
+                val searchQ = searchQueryOf(inputText)
                 val qKey = KnowledgeBase.keyOf(inputText)
                 val bypass = qKey.isNotEmpty() && qKey == lastLocalKey
                 lastLocalKey = null
-                val local = if (bypass || !AppSettings.localFirst(context)) null else KnowledgeBase.findLocal(context, inputText)
+                val local = if (searchQ != null || bypass || !AppSettings.localFirst(context)) null else KnowledgeBase.findLocal(context, inputText)
                 if (local != null) {
                     messages = messages + Message(local, false, mood = "محلي")
                     lastLocalKey = qKey
@@ -322,14 +349,29 @@ fun ChatScreen() {
                 fun setReply(t: String) { if (idx < messages.size) messages = messages.toMutableList().also { it[idx] = Message(t, false) } }
                 val sb = StringBuilder()
                 var failed = false
+                var promptText = inputText
+                var sources = ""
+                if (searchQ != null) {
+                    setReply("🔎 نقلّب في الإنترنت...")
+                    val res = WebSearch.search(searchQ)
+                    if (res.isNotEmpty()) {
+                        promptText = "نتائج بحث حديثة من الإنترنت:\n" +
+                            res.mapIndexed { i, r -> (i + 1).toString() + ". " + r.title + " — " + r.snippet.take(300) }.joinToString("\n") +
+                            "\n\nأجب على سؤال المستخدم بالدارجة وباختصار اعتماداً على هذي النتائج، وإذا ما كفاتش قول هذا. سؤال المستخدم: " + inputText
+                        sources = res.take(3).joinToString("\n") { it.url }
+                    } else {
+                        setReply("⚠️ البحث ما خدمش (الإنترنت ولا المحرك)، نجاوبك من معلوماتي...")
+                    }
+                }
                 try {
-                    ai.sendMessageStream(inputText, MemoryStore.getAll(context).takeLast(12) + (if (SecretStore.looksSensitive(inputText)) SecretStore.getAll(context) else emptyList())).collect { chunk -> sb.append(chunk); setReply(sb.toString()) }
+                    ai.sendMessageStream(promptText, MemoryStore.getAll(context).takeLast(12) + (if (SecretStore.looksSensitive(inputText)) SecretStore.getAll(context) else emptyList())).collect { chunk -> sb.append(chunk); setReply(sb.toString()) }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     setReply(if (sb.isEmpty()) "⏹ تم الإيقاف" else sb.toString() + "\n⏹")
                     throw e
                 } catch (e: Exception) { failed = true; if (sb.isEmpty()) setReply(GeminiAI.friendlyError(e)) }
+                if (!failed && sources.isNotEmpty() && sb.isNotEmpty()) { sb.append("\n\n🔗 المصادر:\n").append(sources); setReply(sb.toString()) }
                 if (sb.isEmpty()) setReply("...")
-                if (AppSettings.autoLearn(context) && !failed && sb.isNotEmpty() && KnowledgeBase.cacheable(inputText, sb.toString())) KnowledgeBase.put(context, inputText, sb.toString())
+                if (AppSettings.autoLearn(context) && searchQ == null && !failed && sb.isNotEmpty() && KnowledgeBase.cacheable(inputText, sb.toString())) KnowledgeBase.put(context, inputText, sb.toString())
                 val known = MemoryStore.getAll(context)
                 val (t, facts, secrets) = if (AppSettings.autoLearn(context)) ai.analyze(inputText, known) else Triple(null, emptyList<String>(), emptyList<String>())
                 if (t != null) suggestedTask = t

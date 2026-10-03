@@ -40,11 +40,6 @@ class AndroidAlarmScheduler(
             return ScheduleResult.Error("خدمة المنبه غير متوفرة في النظام")
         }
 
-        // Android 12+ (API 31+) permission check for exact alarms
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            return ScheduleResult.ExactAlarmPermissionRequired
-        }
-
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             putExtra(AlarmReceiver.EXTRA_REMINDER_ID, reminder.id)
             putExtra(AlarmReceiver.EXTRA_TASK_ID, reminder.taskId)
@@ -60,6 +55,7 @@ class AndroidAlarmScheduler(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        var result: ScheduleResult = ScheduleResult.Success
         try {
             when (reminder.reminderType) {
                 ReminderType.ALARM_CLOCK -> {
@@ -79,15 +75,18 @@ class AndroidAlarmScheduler(
 
                 ReminderType.NOTIFICATION -> {
                     // Exact notification: fires at exact minute even in Doze Mode
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        reminder.triggerTime,
-                        pendingIntent
-                    )
+                    if (canScheduleExactAlarms()) {
+                        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, reminder.triggerTime, pendingIntent)
+                    } else {
+                        // بدون إذن الدقيق: نجدول تقريبي (بدل ما نضيّع التذكير) ونبلّغ المستخدم
+                        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, reminder.triggerTime, pendingIntent)
+                        result = ScheduleResult.ExactAlarmPermissionRequired
+                    }
                 }
             }
-            return ScheduleResult.Success
+            return result
         } catch (e: SecurityException) {
+            try { alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, reminder.triggerTime, pendingIntent) } catch (e2: Exception) { }
             return ScheduleResult.ExactAlarmPermissionRequired
         } catch (e: Exception) {
             return ScheduleResult.Error(e.localizedMessage ?: "حدث خطأ أثناء جدولة التنبيه")

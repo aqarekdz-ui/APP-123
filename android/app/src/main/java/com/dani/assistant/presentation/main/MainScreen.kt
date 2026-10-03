@@ -1,6 +1,10 @@
 package com.dani.assistant.presentation.main
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -18,17 +22,19 @@ import androidx.navigation.compose.rememberNavController
 import com.dani.assistant.presentation.navigation.DaniNavHost
 import com.dani.assistant.presentation.navigation.Screen
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MainScreen() {
+    val imeVisible = WindowInsets.isImeVisible
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().imePadding(),
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            NavigationBar(
+            if (!imeVisible) NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface
             ) {
