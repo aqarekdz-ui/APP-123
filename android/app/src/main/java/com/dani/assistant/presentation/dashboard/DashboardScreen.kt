@@ -34,7 +34,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}) {
+fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, onOpenRealEstate: () -> Unit = {}) {
     val tasks by viewModel.tasks.collectAsState()
     val pending = tasks.filter { !it.isCompleted }
     val done = tasks.count { it.isCompleted }
@@ -43,7 +43,10 @@ fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}) 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("DANI", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            TextButton(onClick = onOpenSettings) { Text("⚙ الإعدادات") }
+            Row {
+                TextButton(onClick = onOpenRealEstate) { Text("🏠 العقار") }
+                TextButton(onClick = onOpenSettings) { Text("⚙ الإعدادات") }
+            }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatCard("متبقية", pending.size.toString(), Modifier.weight(1f))

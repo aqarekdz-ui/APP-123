@@ -331,6 +331,17 @@ class GeminiAI {
     }
 
     // Returns a short task title if the message contains a task/reminder/appointment, else null
+    /** يكتب إعلاناً عقارياً جاهزاً للنشر من بيانات العقار. */
+    suspend fun writeAd(details: String, contact: String): String {
+        val prompt = "اكتب إعلاناً عقارياً جذاباً ومنظماً بالعربية المبسطة (مفهومة لكل الجزائريين) ينشر في فيسبوك ومواقع الإعلانات المبوبة. " +
+            "القواعد: ابدأ بعنوان قصير جذاب مع إيموجي مناسب، ثم المميزات بنقاط قصيرة تبدأ كل واحدة بـ ✅، ثم السعر، ثم سطر للتواصل. " +
+            "لا تخترع أي معلومة غير مذكورة (لا طابق ولا مرافق ولا موقع دقيق) ولا تبالغ. " +
+            "بدون رموز markdown مثل ** أو #. أرجع نص الإعلان فقط.\n\nبيانات العقار:\n" + details + "\n" +
+            (if (contact.isNotBlank()) "سطر التواصل (ضعه كما هو في آخر الإعلان): " + contact
+            else "ضع في آخر الإعلان سطراً: للتواصل: (رقم الهاتف)")
+        return generate(prompt)?.trim().orEmpty()
+    }
+
     suspend fun extractTask(msg: String): String? {
         return try {
             val prompt = "حلل الرسالة التالية. إذا كانت تتضمن مهمة أو تذكيراً أو موعداً أو شيئاً يجب فعله، " +

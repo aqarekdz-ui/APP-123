@@ -89,7 +89,7 @@ fun MemoryScreen() {
             try {
                 val r = withContext(Dispatchers.IO) { BackupManager.import(context, json, pass) }
                 refreshAll()
-                backupMsg = "تم الاستيراد: " + r.tasks + " مهمة، " + r.facts + " معلومة، " + r.knowledge + " معرفة، " + r.chat + " رسالة شات، " + r.secrets + " سر" +
+                backupMsg = "تم الاستيراد: " + r.tasks + " مهمة، " + r.facts + " معلومة، " + r.knowledge + " معرفة، " + r.chat + " رسالة شات، " + r.realestate + " عميل/عقار، " + r.secrets + " سر" +
                     (if (r.secretsSkipped) " (الأسرار تخطّيناها: كلمة سر النسخة ناقصة أو غلط)" else "")
             } catch (e: Exception) {
                 backupMsg = "فشل الاستيراد: " + (e.message ?: "")

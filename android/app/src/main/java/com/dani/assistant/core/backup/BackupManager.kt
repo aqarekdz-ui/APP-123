@@ -6,6 +6,7 @@ import com.dani.assistant.core.knowledge.KnowledgeBase
 import com.dani.assistant.core.knowledge.KnowledgeEntry
 import com.dani.assistant.core.memory.MemoryStore
 import com.dani.assistant.core.memory.SecretStore
+import com.dani.assistant.core.realestate.RealEstateStore
 import com.dani.assistant.domain.model.PriorityLevel
 import com.dani.assistant.domain.model.Recurrence
 import com.dani.assistant.domain.model.ReminderType
@@ -29,7 +30,8 @@ data class ImportResult(
     val knowledge: Int,
     val secrets: Int,
     val secretsSkipped: Boolean,
-    val chat: Int = 0
+    val chat: Int = 0,
+    val realestate: Int = 0
 )
 
 /** نسخة احتياطية موحّدة: مهام + معلومات + معرفة + رسائل الشات + أسرار (مشفّرة بكلمة سر النسخة، اختيارية). */
@@ -143,6 +145,7 @@ object BackupManager {
             .put("facts", JSONArray(MemoryStore.getAll(ctx)))
             .put("knowledge", knowledgeArr)
             .put("chat", readChat(ctx))
+            .put("realestate", RealEstateStore.exportJson(ctx))
         if (pass.isNotEmpty()) {
             val secrets = SecretStore.getAll(ctx)
             if (secrets.isNotEmpty()) {
@@ -212,6 +215,9 @@ object BackupManager {
         // رسائل الشات (نسخ قديمة ما فيهاش "chat" → 0)
         val chatAdded = mergeChat(ctx, root.optJSONArray("chat") ?: JSONArray())
 
+        // العقار (عملاء + عقارات)
+        val reAdded = root.optJSONObject("realestate")?.let { RealEstateStore.importJson(ctx, it) } ?: 0
+
         // الأسرار
         var secretsAdded = 0
         var secretsSkipped = false
@@ -226,6 +232,6 @@ object BackupManager {
                 secretsAdded = SecretStore.getAll(ctx).size - before
             }
         }
-        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped, chatAdded)
+        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped, chatAdded, reAdded)
     }
 }
