@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import com.dani.assistant.data.repository.TaskRepository
 import com.dani.assistant.domain.model.PriorityLevel
 import com.dani.assistant.domain.model.Recurrence
+import com.dani.assistant.domain.model.Subtask
 import com.dani.assistant.domain.model.Task
 import com.dani.assistant.domain.model.TaskStatus
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,7 +32,7 @@ class TasksViewModel(
 
     fun dismissPermissionPrompt() { _needsExactAlarmPermission.value = false }
 
-    fun addTask(title: String, description: String, priority: String, dueDate: Long?, recurrence: Recurrence = Recurrence.NONE) {
+    fun addTask(title: String, description: String, priority: String, dueDate: Long?, recurrence: Recurrence = Recurrence.NONE, subtasks: List<Subtask> = emptyList()) {
         viewModelScope.launch {
             val priorityLevel = when (priority) {
                 "High" -> PriorityLevel.IMPORTANT
@@ -45,7 +46,8 @@ class TasksViewModel(
                 priority = priorityLevel,
                 dueDate = dueDate,
                 status = TaskStatus.NEW,
-                recurrence = if (dueDate != null) recurrence else Recurrence.NONE
+                recurrence = if (dueDate != null) recurrence else Recurrence.NONE,
+                subtasks = subtasks
             )
             
             val id = taskRepository.insertTask(newTask)
@@ -58,7 +60,7 @@ class TasksViewModel(
         }
     }
 
-    fun updateTask(task: Task, title: String, description: String, priority: String, dueDate: Long?, recurrence: Recurrence = task.recurrence) {
+    fun updateTask(task: Task, title: String, description: String, priority: String, dueDate: Long?, recurrence: Recurrence = task.recurrence, subtasks: List<Subtask> = task.subtasks) {
         viewModelScope.launch {
             val newPriority = if (priorityLabel(task.priority) == priority) task.priority else when (priority) {
                 "High" -> PriorityLevel.IMPORTANT
@@ -70,7 +72,8 @@ class TasksViewModel(
                 description = description.ifEmpty { null },
                 priority = newPriority,
                 dueDate = dueDate,
-                recurrence = if (dueDate != null) recurrence else Recurrence.NONE
+                recurrence = if (dueDate != null) recurrence else Recurrence.NONE,
+                subtasks = subtasks
             )
             taskRepository.updateTask(updated)
 
@@ -93,6 +96,14 @@ class TasksViewModel(
     fun toggleTask(task: Task) {
         viewModelScope.launch {
             taskRepository.toggleTaskCompleted(task)
+        }
+    }
+
+    fun toggleSubtask(task: Task, index: Int) {
+        if (index !in task.subtasks.indices) return
+        viewModelScope.launch {
+            val list = task.subtasks.mapIndexed { i, st -> if (i == index) st.copy(done = !st.done) else st }
+            taskRepository.updateTask(task.copy(subtasks = list))
         }
     }
 

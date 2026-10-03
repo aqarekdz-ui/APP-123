@@ -22,6 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dani.assistant.domain.model.PriorityLevel
 import com.dani.assistant.domain.model.Recurrence
+import com.dani.assistant.domain.model.Subtask
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.dani.assistant.domain.model.Task
 import java.text.SimpleDateFormat
 import java.util.*
@@ -94,7 +97,7 @@ fun TasksScreen(viewModel: TasksViewModel) {
                         }
                     }
                 ) {
-                    TaskCard(task = task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) }, onEdit = { editingTask = task })
+                    TaskCard(task = task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) }, onEdit = { editingTask = task }, onSubtaskToggle = { i -> viewModel.toggleSubtask(task, i) })
                 }
             }
         }
@@ -133,8 +136,8 @@ fun TasksScreen(viewModel: TasksViewModel) {
         if (editing != null) {
             AddTaskDialog(
                 onDismiss = { editingTask = null },
-                onAdd = { title, desc, priority, dueDate, rec ->
-                    viewModel.updateTask(editing, title, desc, priority, dueDate, rec)
+                onAdd = { title, desc, priority, dueDate, rec, subs ->
+                    viewModel.updateTask(editing, title, desc, priority, dueDate, rec, subs)
                     editingTask = null
                 },
                 initial = editing
@@ -142,8 +145,8 @@ fun TasksScreen(viewModel: TasksViewModel) {
         }
 
         if (showAddDialog) {
-            AddTaskDialog(onDismiss = { showAddDialog = false }, onAdd = { title, desc, priority, dueDate, rec ->
-                viewModel.addTask(title, desc, priority, dueDate, rec)
+            AddTaskDialog(onDismiss = { showAddDialog = false }, onAdd = { title, desc, priority, dueDate, rec, subs ->
+                viewModel.addTask(title, desc, priority, dueDate, rec, subs)
                 showAddDialog = false
             })
         }
@@ -158,7 +161,7 @@ internal fun priorityLabel(p: PriorityLevel): String = when (p) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit = {}) {
+fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit = {}, onSubtaskToggle: (Int) -> Unit = {}) {
     val priorityName = priorityLabel(task.priority)
     val priorityColor = when (priorityName) {
         "High" -> MaterialTheme.colorScheme.error
@@ -176,6 +179,13 @@ fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onEdit: () 
                     Text(priorityName, fontSize = 10.sp, color = priorityColor, fontWeight = FontWeight.Bold)
                     if (task.recurrence != Recurrence.NONE) Text("🔁 " + task.recurrence.arabic, fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
                     if (task.dueDate != null) Text(SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(task.dueDate)), fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                    if (task.subtasks.isNotEmpty()) Text("☑ " + task.subtasks.count { it.done } + "/" + task.subtasks.size, fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+                }
+                task.subtasks.forEachIndexed { i, st ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { onSubtaskToggle(i) }) {
+                        Checkbox(checked = st.done, onCheckedChange = { onSubtaskToggle(i) })
+                        Text(st.text, fontSize = 13.sp, style = if (st.done) MaterialTheme.typography.bodySmall.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough) else MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
             IconButton(onClick = onDelete) { Text("🗑", fontSize = 18.sp) }
@@ -185,12 +195,14 @@ fun TaskCard(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onEdit: () 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?, Recurrence) -> Unit, initial: Task? = null) {
+fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?, Recurrence, List<Subtask>) -> Unit, initial: Task? = null) {
     var title by remember { mutableStateOf(initial?.title ?: "") }
     var description by remember { mutableStateOf(initial?.description ?: "") }
     var priority by remember { mutableStateOf(if (initial != null) priorityLabel(initial.priority) else "Medium") }
     var dueDate by remember { mutableStateOf(initial?.dueDate) }
     var recurrence by remember { mutableStateOf(initial?.recurrence ?: Recurrence.NONE) }
+    var subs by remember { mutableStateOf(initial?.subtasks ?: emptyList<Subtask>()) }
+    var newSub by remember { mutableStateOf("") }
     val context = LocalContext.current
     fun pickDateTime() {
         val cal = Calendar.getInstance()
@@ -205,7 +217,7 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?, 
     }
 
     AlertDialog(onDismissRequest = onDismiss, title = { Text(if (initial == null) "Add Task" else "Edit Task") }, text = {
-        Column {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             TextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(8.dp))
             TextField(value = description, onValueChange = { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
@@ -232,6 +244,20 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String, Long?, 
                 }
             }
             if (dueDate == null) Text("اختر وقت التذكير باش تفعّل التكرار", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("☑ خطوات فرعية", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            subs.forEachIndexed { i, st ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(st.text, modifier = Modifier.weight(1f), fontSize = 13.sp)
+                    TextButton(onClick = { subs = subs.filterIndexed { j, _ -> j != i } }) { Text("✕") }
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextField(value = newSub, onValueChange = { newSub = it }, placeholder = { Text("زيد خطوة") }, singleLine = true, modifier = Modifier.weight(1f))
+                TextButton(onClick = {
+                    if (newSub.isNotBlank()) { subs = subs + Subtask(newSub.trim()); newSub = "" }
+                }) { Text("＋") }
+            }
         }
-    }, confirmButton = { Button(onClick = { if (title.isNotBlank()) onAdd(title, description, priority, dueDate, recurrence) }) { Text(if (initial == null) "Add" else "Save") } }, dismissButton = { Button(onClick = onDismiss) { Text("Cancel") } })
+    }, confirmButton = { Button(onClick = { if (title.isNotBlank()) onAdd(title, description, priority, dueDate, recurrence, if (newSub.isNotBlank()) subs + Subtask(newSub.trim()) else subs) }) { Text(if (initial == null) "Add" else "Save") } }, dismissButton = { Button(onClick = onDismiss) { Text("Cancel") } })
 }

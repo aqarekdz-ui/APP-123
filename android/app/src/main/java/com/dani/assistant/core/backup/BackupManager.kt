@@ -9,6 +9,7 @@ import com.dani.assistant.core.memory.SecretStore
 import com.dani.assistant.domain.model.PriorityLevel
 import com.dani.assistant.domain.model.Recurrence
 import com.dani.assistant.domain.model.ReminderType
+import com.dani.assistant.domain.model.Subtask
 import com.dani.assistant.domain.model.Task
 import com.dani.assistant.domain.model.TaskStatus
 import com.dani.assistant.DaniApplication
@@ -124,6 +125,7 @@ object BackupManager {
                     .put("created", it.createdAt)
                     .put("completed", it.completedAt ?: JSONObject.NULL)
                     .put("rec", it.recurrence.name)
+                    .put("subs", JSONArray().also { a -> it.subtasks.forEach { s -> a.put(JSONObject().put("t", s.text).put("d", s.done)) } })
             )
         }
         val knowledgeArr = JSONArray()
@@ -175,7 +177,14 @@ object BackupManager {
                 dueDate = due,
                 createdAt = created,
                 completedAt = if (o.isNull("completed")) null else o.getLong("completed"),
-                recurrence = try { Recurrence.valueOf(o.optString("rec", "NONE")) } catch (e: Exception) { Recurrence.NONE }
+                recurrence = try { Recurrence.valueOf(o.optString("rec", "NONE")) } catch (e: Exception) { Recurrence.NONE },
+                subtasks = o.optJSONArray("subs")?.let { a ->
+                    (0 until a.length()).mapNotNull { k ->
+                        val so = a.optJSONObject(k) ?: return@mapNotNull null
+                        val t = so.optString("t")
+                        if (t.isBlank()) null else Subtask(t, so.optBoolean("d"))
+                    }
+                } ?: emptyList()
             )
             val id = repo.insertTask(task)
             tasksAdded++

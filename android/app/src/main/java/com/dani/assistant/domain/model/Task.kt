@@ -11,7 +11,8 @@ data class Task(
     val dueDate: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null,
-    val recurrence: Recurrence = Recurrence.NONE
+    val recurrence: Recurrence = Recurrence.NONE,
+    val subtasks: List<Subtask> = emptyList()
 ) {
     val isCompleted: Boolean
         get() = status == TaskStatus.COMPLETED

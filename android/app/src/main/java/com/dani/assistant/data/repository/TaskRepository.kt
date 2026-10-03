@@ -10,6 +10,7 @@ import com.dani.assistant.data.local.entity.ReminderEntity
 import com.dani.assistant.data.local.entity.TaskEntity
 import com.dani.assistant.domain.model.PriorityLevel
 import com.dani.assistant.domain.model.Recurrence
+import com.dani.assistant.domain.model.SubtaskCodec
 import kotlinx.coroutines.flow.first
 import com.dani.assistant.domain.model.Reminder
 import com.dani.assistant.domain.model.ReminderType
@@ -148,7 +149,8 @@ class TaskRepositoryImpl(
                 status = TaskStatus.NEW,
                 dueDate = next,
                 createdAt = now,
-                completedAt = null
+                completedAt = null,
+                subtasks = task.subtasks.map { it.copy(done = false) }
             ).toEntity()
         )
         setTaskReminder(newId, task.title, next, ReminderType.NOTIFICATION)
@@ -222,7 +224,8 @@ class TaskRepositoryImpl(
             dueDate = dueDate,
             createdAt = createdAt,
             completedAt = completedAt,
-            recurrence = try { Recurrence.valueOf(recurrence) } catch (e: Exception) { Recurrence.NONE }
+            recurrence = try { Recurrence.valueOf(recurrence) } catch (e: Exception) { Recurrence.NONE },
+            subtasks = SubtaskCodec.decode(subtasks)
         )
     }
 
@@ -238,7 +241,8 @@ class TaskRepositoryImpl(
             dueDate = dueDate,
             createdAt = createdAt,
             completedAt = completedAt,
-            recurrence = recurrence.name
+            recurrence = recurrence.name,
+            subtasks = SubtaskCodec.encode(subtasks)
         )
     }
 
