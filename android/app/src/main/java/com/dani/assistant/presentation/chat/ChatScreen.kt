@@ -42,7 +42,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dani.assistant.DaniApplication
 import com.dani.assistant.core.ai.GeminiAI
+import com.dani.assistant.domain.model.Task
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -157,7 +159,14 @@ fun ChatScreen() {
                         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) { Text("Task suggestion:", fontWeight = FontWeight.Bold, fontSize = 12.sp); Text(suggestedTask!!, fontSize = 14.sp, modifier = Modifier.padding(end = 8.dp))
                             Button(onClick = { /* TODO: Add to tasks */ }) { Text("Add to Tasks", fontSize = 10.sp) } }
-                            Button(onClick = { suggestedTask = null }) { Text("OK") }
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                TextButton(onClick = { suggestedTask = null }) { Text("Ignore") }
+                                Button(onClick = {
+                                    val t = suggestedTask
+                                    if (t != null) scope.launch { DaniApplication.instance.taskRepository.insertTask(Task(title = t)) }
+                                    suggestedTask = null
+                                }) { Text("Add") }
+                            }
                         }
                     }
                 }

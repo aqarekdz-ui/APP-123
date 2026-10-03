@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import com.dani.assistant.DaniApplication
 import com.dani.assistant.presentation.placeholder.PlaceholderScreen
 import com.dani.assistant.presentation.chat.ChatScreen
+import com.dani.assistant.presentation.dashboard.DashboardScreen
 import com.dani.assistant.presentation.tasks.TasksScreen
 import com.dani.assistant.presentation.tasks.TasksViewModel
 
@@ -23,7 +24,14 @@ fun DaniNavHost(
         modifier = modifier
     ) {
         composable(Screen.Dashboard.route) {
-            PlaceholderScreen(title = Screen.Dashboard.title)
+            val app = DaniApplication.instance
+            val viewModel: TasksViewModel = viewModel(
+                factory = TasksViewModel.provideFactory(
+                    taskRepository = app.taskRepository,
+                    alarmScheduler = app.alarmScheduler
+                )
+            )
+            DashboardScreen(viewModel = viewModel)
         }
         composable(Screen.Tasks.route) {
             val app = DaniApplication.instance
