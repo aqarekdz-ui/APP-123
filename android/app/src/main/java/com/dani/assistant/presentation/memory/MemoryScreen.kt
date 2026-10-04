@@ -198,7 +198,23 @@ fun MemoryScreen() {
             }) { Text("حفظ") }
         }
 
+        val focused = remember { com.dani.assistant.core.search.SearchFocus.takeText() }
+        var showFocused by remember { mutableStateOf(focused != null) }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (focused != null && showFocused) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth(), colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("🔎 " + focused.second + " من البحث", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                            Text(focused.first, modifier = Modifier.padding(vertical = 6.dp))
+                            Row {
+                                if (focused.second == "معلومة") TextButton(onClick = { MemoryStore.remove(context, focused.first); facts = MemoryStore.getAll(context); showFocused = false }) { Text("حذف") }
+                                TextButton(onClick = { showFocused = false }) { Text("سكّر") }
+                            }
+                        }
+                    }
+                }
+            }
             if (secrets.isNotEmpty()) {
                 item { Text("معلومات سرية (مشفّرة)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
                 items(secrets) { sec ->

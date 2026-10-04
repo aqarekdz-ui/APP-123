@@ -42,6 +42,13 @@ fun TasksScreen(viewModel: TasksViewModel) {
     var pendingDelete by remember { mutableStateOf<Task?>(null) }
     var filterArea by remember { mutableStateOf<String?>(null) }
     val areaCtx = LocalContext.current
+    androidx.compose.runtime.LaunchedEffect(tasks) {
+        val want = com.dani.assistant.core.search.SearchFocus.peekTask()
+        if (want != null) {
+            val hit = tasks.firstOrNull { it.id == want }
+            if (hit != null) { editingTask = hit; com.dani.assistant.core.search.SearchFocus.clearTask() }
+        }
+    }
     val areaTick by viewModel.areaTick.collectAsState()
     val areaMap = remember(tasks, areaTick) { AreaStore.all(areaCtx) }
 

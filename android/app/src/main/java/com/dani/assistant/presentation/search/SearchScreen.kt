@@ -59,7 +59,7 @@ fun SearchScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (searched && hits.isEmpty()) item { Text("ما لقيت والو.", color = MaterialTheme.colorScheme.outline) }
             itemsIndexed(hits) { _, h: Hit ->
-                Card(modifier = Modifier.fillMaxWidth().clickable { onOpen(h.route) }) {
+                Card(modifier = Modifier.fillMaxWidth().clickable { com.dani.assistant.core.search.SearchFocus.remember(h); onOpen(h.route) }) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(h.emoji + " " + h.title, fontWeight = FontWeight.Bold, maxLines = 2)
                         Text(h.kind + (if (h.sub.isNotBlank()) " • " + h.sub else ""), fontSize = 12.sp, color = MaterialTheme.colorScheme.outline, maxLines = 2)

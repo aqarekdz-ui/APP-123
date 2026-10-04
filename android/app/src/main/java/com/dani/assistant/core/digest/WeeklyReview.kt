@@ -96,6 +96,19 @@ object WeeklyReview {
                 sb.append("\n  ").append(h.emoji).append(" ").append(h.name).append(": ").append(cnt)
             }
         }
+        try {
+            val ups = com.dani.assistant.core.events.EventStore.upcoming(ctx, 7)
+            if (ups.isNotEmpty()) {
+                sb.append("\n\n🎂 مناسبات الأسبوع الجاي:")
+                ups.take(5).forEach { u -> sb.append("\n  ").append(if (u.event.kind == "birthday") "🎂 " else "🎉 ").append(u.event.name).append(" — ").append(com.dani.assistant.core.events.daysText(u.daysLeft)) }
+            }
+            val since = dayStart(-6)
+            val recent = com.dani.assistant.core.notes.NoteStore.list(ctx).filter { it.updatedAt >= since }
+            if (recent.isNotEmpty()) {
+                sb.append("\n\n📝 ملاحظات هذا الأسبوع: ").append(recent.size)
+                recent.take(3).forEach { sb.append("\n  • ").append(it.text.replace("\n", " ").take(50)) }
+            }
+        } catch (e: Exception) { }
         return sb.toString()
     }
 

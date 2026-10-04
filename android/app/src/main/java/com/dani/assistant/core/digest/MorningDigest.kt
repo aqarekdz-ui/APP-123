@@ -64,12 +64,20 @@ object MorningDigest {
             .filter { it.status != TaskStatus.COMPLETED && it.status != TaskStatus.CANCELLED }
         val today = pending.filter { it.dueDate != null && it.dueDate in start..end }.sortedBy { it.dueDate }
         val overdue = pending.count { it.dueDate != null && it.dueDate < start }
-        if (today.isEmpty() && overdue == 0) return // ما نزعجوكش بإشعار فارغ
+        val evs = try { com.dani.assistant.core.events.EventStore.upcoming(ctx, 1) } catch (e: Exception) { emptyList() }
+        if (today.isEmpty() && overdue == 0 && evs.isEmpty()) return // ما نزعجوكش بإشعار فارغ
 
         val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
-        val lines = today.take(6).map { "• " + fmt.format(Date(it.dueDate!!)) + "  " + it.title }.toMutableList()
+        val lines = ArrayList<String>()
+        evs.forEach { u -> lines.add((if (u.event.kind == "birthday") "🎂 " else "🎉 ") + (if (u.daysLeft == 0) "اليوم: " else "غدوة: ") + u.event.name + (if (u.age > 0) " (" + u.age + " سنة)" else "")) }
+        today.take(6).forEach { lines.add("• " + fmt.format(Date(it.dueDate!!)) + "  " + it.title) }
         if (today.size > 6) lines.add("… و" + (today.size - 6) + " أخرى")
         if (overdue > 0) lines.add("⚠️ " + overdue + " مهمة متأخرة")
+        try {
+            val pins = com.dani.assistant.core.notes.NoteStore.list(ctx).filter { it.pinned }
+            pins.take(2).forEach { lines.add("📌 " + it.text.replace("\n", " ").take(60)) }
+            if (pins.size > 2) lines.add("📌 … و" + (pins.size - 2) + " ملاحظات مثبّتة")
+        } catch (e: Exception) { }
 
         val title = if (today.isNotEmpty()) "☀️ صباح الخير! عندك " + today.size + " مهام اليوم" else "☀️ صباح الخير!"
         val open = PendingIntent.getActivity(

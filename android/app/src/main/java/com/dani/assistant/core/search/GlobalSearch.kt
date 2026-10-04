@@ -19,7 +19,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-data class Hit(val emoji: String, val kind: String, val title: String, val sub: String, val route: String)
+data class Hit(val emoji: String, val kind: String, val title: String, val sub: String, val route: String, val ref: String = "")
 
 /** بحث شامل محلي (بدون الأسرار المشفّرة): مهام، ملاحظات، مناسبات، مال، عملاء/عقارات، أهداف، عادات، أدوية، ذاكرة، معرفة. */
 object GlobalSearch {
@@ -65,7 +65,7 @@ object GlobalSearch {
                 .filter { match(toks, it.title, it.description ?: "") }.take(PER_KIND)
                 .forEach { t ->
                     out.add(Hit("✅", "مهمة", t.title,
-                        (if (t.isCompleted) "منجزة" else "قائمة") + (t.dueDate?.let { " • " + df.format(Date(it)) } ?: ""), Screen.Tasks.route))
+                        (if (t.isCompleted) "منجزة" else "قائمة") + (t.dueDate?.let { " • " + df.format(Date(it)) } ?: ""), Screen.Tasks.route, t.id.toString()))
                 }
         } catch (e: Exception) { }
 
@@ -95,9 +95,9 @@ object GlobalSearch {
             .forEach { out.add(Hit("💊", "دواء", it.name, it.times.joinToString(" ") { t -> fmtMinute(t) }, "meds")) }
 
         MemoryStore.getAll(ctx).filter { match(toks, it) }.take(PER_KIND)
-            .forEach { out.add(Hit("🧠", "معلومة", short(it), "", Screen.Memory.route)) }
+            .forEach { out.add(Hit("🧠", "معلومة", short(it), "", Screen.Memory.route, it)) }
         KnowledgeBase.getAll(ctx).filter { match(toks, it.question, it.answer) }.take(PER_KIND)
-            .forEach { out.add(Hit("📚", "معرفة", short(it.question, 60), short(it.answer, 60), Screen.Memory.route)) }
+            .forEach { out.add(Hit("📚", "معرفة", short(it.question, 60), short(it.answer, 60), Screen.Memory.route, it.question + "\n" + it.answer)) }
         return out
     }
 
