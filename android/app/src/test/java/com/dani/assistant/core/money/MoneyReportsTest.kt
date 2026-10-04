@@ -67,3 +67,44 @@ class MoneyReportsTest {
         assertEquals(listOf(2026, 2026, 2027), jan.map { it.year })
     }
 }
+
+class MoneyPaceTest {
+    private fun ms(y: Int, m: Int, d: Int, h: Int = 12): Long {
+        val c = Calendar.getInstance(); c.clear(); c.set(y, m - 1, d, h, 0, 0); return c.timeInMillis
+    }
+    private fun ex(amt: Long, date: Long, type: String = "expense") = MoneyEntry(id = date + amt, type = type, amount = amt, date = date)
+
+    @Test fun projectsToEndOfMonthAndComparesSamePeriod() {
+        val now = ms(2026, 10, 10)
+        val list = listOf(
+            ex(1000, ms(2026, 10, 2)), ex(1000, ms(2026, 10, 10, 20)),
+            ex(500, ms(2026, 9, 3)), ex(5000, ms(2026, 9, 20)), // خارج نفس الفترة
+            ex(9999, ms(2026, 10, 5), "income")
+        )
+        val p = MoneyReports.pace(list, now)
+        assertEquals(2000L, p.spent)
+        assertEquals(500L, p.prevSamePeriod)
+        assertEquals(6200L, p.projected) // 2000 * 31 / 10
+        assertEquals(300, p.pct)
+    }
+
+    @Test fun noPreviousMonthMeansNoPercent() {
+        val p = MoneyReports.pace(listOf(ex(300, ms(2026, 10, 1))), ms(2026, 10, 15))
+        assertEquals(null, p.pct)
+        assertEquals(0L, p.prevSamePeriod)
+    }
+
+    @Test fun shortPreviousMonthIsCapped() {
+        // 31 مارس مقابل فيفري (28 يوم): الفترة السابقة = كامل فيفري
+        val list = listOf(ex(100, ms(2026, 3, 31)), ex(400, ms(2026, 2, 28)), ex(50, ms(2026, 2, 1)))
+        val p = MoneyReports.pace(list, ms(2026, 3, 31))
+        assertEquals(450L, p.prevSamePeriod)
+        assertEquals(100L, p.spent)
+        assertEquals(100L, p.projected)
+    }
+
+    @Test fun emptyMonth() {
+        val p = MoneyReports.pace(emptyList(), ms(2026, 10, 4))
+        assertEquals(0L, p.spent); assertEquals(0L, p.projected)
+    }
+}

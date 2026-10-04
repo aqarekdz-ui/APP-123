@@ -530,6 +530,13 @@ object LifeCommands {
         val cats = list.filter { it.type == "expense" }.groupBy { it.category.ifBlank { "أخرى" } }
             .map { (k, v) -> k to v.sumOf { it.amount } }.sortedByDescending { it.second }.take(4)
         if (cats.isNotEmpty()) sb.append("\n").append(cats.joinToString("  •  ") { it.first + " " + MoneyStore.fmt(it.second) })
+        if (title == "هذا الشهر") {
+            val p = com.dani.assistant.core.money.MoneyReports.pace(MoneyStore.entries(ctx), System.currentTimeMillis())
+            if (p.spent > 0) {
+                sb.append("\n\n📈 توقع نهاية الشهر: ~").append(MoneyStore.fmt(p.projected))
+                if (p.pct != null) sb.append("\nمقارنة بنفس الفترة من الشهر الفايت (").append(MoneyStore.fmt(p.prevSamePeriod)).append("): ").append(if (p.pct >= 0) "+" else "").append(p.pct).append("%")
+            }
+        }
         return sb.toString()
     }
 }

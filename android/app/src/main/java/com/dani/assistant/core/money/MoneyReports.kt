@@ -7,6 +7,8 @@ import java.util.Locale
 
 data class MonthTotal(val year: Int, val month: Int, val income: Long, val expense: Long)
 
+data class Pace(val spent: Long, val prevSamePeriod: Long, val projected: Long, val pct: Int?)
+
 /** تقارير المال (منطق صافي، يتجرّب بـ JUnit): CSV + مجاميع للرسوم. */
 object MoneyReports {
     private val typeLabels = mapOf(
@@ -44,6 +46,33 @@ object MoneyReports {
             .groupBy { it.category.ifBlank { "أخرى" } }
             .map { (k, v) -> k to v.sumOf { it.amount } }
             .sortedByDescending { it.second }
+
+    private fun startOfDay(nowMs: Long, plusDays: Int = 0): Calendar {
+        val c = Calendar.getInstance()
+        c.timeInMillis = nowMs
+        c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0)
+        c.add(Calendar.DAY_OF_YEAR, plusDays)
+        return c
+    }
+
+    /** وتيرة الصرف: المصروف لحد اليوم، نفس الفترة من الشهر الفايت، التوقع لنهاية الشهر، والنسبة. */
+    fun pace(entries: List<MoneyEntry>, nowMs: Long): Pace {
+        val now = Calendar.getInstance(); now.timeInMillis = nowMs
+        val day = now.get(Calendar.DAY_OF_MONTH)
+        val dim = now.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val mStart = startOfDay(nowMs).apply { set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis
+        val tomorrow = startOfDay(nowMs, 1).timeInMillis
+        val prevStartCal = startOfDay(nowMs).apply { set(Calendar.DAY_OF_MONTH, 1); add(Calendar.MONTH, -1) }
+        val prevStart = prevStartCal.timeInMillis
+        val prevDays = prevStartCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val prevEnd = Calendar.getInstance().apply { timeInMillis = prevStart; add(Calendar.DAY_OF_YEAR, minOf(day, prevDays)) }.timeInMillis
+        val ex = entries.filter { it.type == "expense" }
+        val spent = ex.filter { it.date in mStart until tomorrow }.sumOf { it.amount }
+        val prev = ex.filter { it.date in prevStart until prevEnd }.sumOf { it.amount }
+        val projected = spent * dim / day
+        val pct = if (prev > 0) Math.round((spent - prev) * 100.0 / prev).toInt() else null
+        return Pace(spent, prev, projected, pct)
+    }
 
     /** آخر [count] أشهر (الأقدم أولاً) تنتهي بشهر [nowMs]. */
     fun monthTotals(entries: List<MoneyEntry>, count: Int, nowMs: Long): List<MonthTotal> {
