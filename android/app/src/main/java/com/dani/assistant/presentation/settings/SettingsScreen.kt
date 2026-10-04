@@ -41,6 +41,10 @@ import com.dani.assistant.core.ai.GeminiAI
 import com.dani.assistant.core.knowledge.KnowledgeBase
 import com.dani.assistant.core.security.AppLock
 import com.dani.assistant.core.settings.AppSettings
+import com.dani.assistant.core.backup.AutoBackup
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Intent
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -64,6 +68,20 @@ fun SettingsScreen(onBack: () -> Unit) {
     var watchLast by remember { mutableStateOf(WatchSettings.lastSummary(context)) }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
+    var abOn by remember { mutableStateOf(AutoBackup.enabled(context)) }
+    var abFolder by remember { mutableStateOf(AutoBackup.folderLabel(context)) }
+    var abPass by remember { mutableStateOf(AutoBackup.pass(context)) }
+    var abResult by remember { mutableStateOf<String?>(null) }
+    var abBusy by remember { mutableStateOf(false) }
+    val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            } catch (e: Exception) { }
+            AutoBackup.setTree(context, uri)
+            abFolder = AutoBackup.folderLabel(context)
+        }
+    }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -255,6 +273,36 @@ fun SettingsScreen(onBack: () -> Unit) {
             Button(onClick = { confirmClearChat = true }) { Text("مسح المحادثة") }
         }
         Text("للنسخ الاحتياطي (تصدير/استيراد) افتح تبويب الذاكرة.", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+
+        // ---- نسخ احتياطي تلقائي ----
+        Text("💾 نسخ احتياطي تلقائي", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        SettingSwitch("نسخة كل أسبوع", "ملف نسخة لكل بياناتك (مهام، عادات، مال، عقار، ذاكرة، شات...). تبقى آخر 5 نسخ.", abOn) {
+            abOn = it
+            AutoBackup.setEnabled(context, it)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { folderLauncher.launch(null) }) { Text("📁 اختر مجلد") }
+            Text(abFolder ?: "بدون: يحفظ داخل التطبيق فقط", fontSize = 12.sp)
+        }
+        TextField(
+            value = abPass,
+            onValueChange = { abPass = it; AutoBackup.setPass(context, it) },
+            label = { Text("كلمة سر النسخة (اختياري: باش تدخل الأسرار)") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Button(enabled = !abBusy, onClick = {
+            abBusy = true
+            abResult = "⏳ جاري النسخ..."
+            scope.launch {
+                abResult = AutoBackup.runNow(context)
+                abBusy = false
+            }
+        }) { Text("💾 نسخ الآن") }
+        val abShown = abResult ?: AutoBackup.lastInfo(context).takeIf { it.isNotBlank() }?.let { "آخر نسخة: " + it }
+        if (abShown != null) Text(abShown, fontSize = 12.sp)
+        Text("نصيحة: اختر مجلداً يتزامن مع Google Drive ولا Syncthing باش ما تضيعش النسخ إذا ضاع الهاتف. للاستعادة: تبويب الذاكرة ← استيراد.", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
 
         val m = msg
         if (m != null) Text(m, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
