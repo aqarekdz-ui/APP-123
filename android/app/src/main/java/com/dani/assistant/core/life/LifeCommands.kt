@@ -159,6 +159,9 @@ object LifeCommands {
         if (s.isEmpty() || s.length > 220) return null
         val n = norm(s)
 
+        // 0) الملاحظات (قبل "الغي آخر")
+        com.dani.assistant.core.notes.NoteCommands.handle(ctx, s, n)?.let { return it }
+
         // 1) إلغاء آخر عملية
         if (has(n, "الغي اخر", "امسح اخر", "احذف اخر", "تراجع عن اخر", "الغي التسجيل", "الغي العمليه")) return undoLast(ctx)
 

@@ -43,7 +43,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, onOpenRealEstate: () -> Unit = {}, onOpenHabits: () -> Unit = {}, onOpenMoney: () -> Unit = {}, onOpenGoals: () -> Unit = {}, onOpenFocus: () -> Unit = {}, onOpenMeds: () -> Unit = {}, onOpenEvents: () -> Unit = {}) {
+fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, onOpenRealEstate: () -> Unit = {}, onOpenHabits: () -> Unit = {}, onOpenMoney: () -> Unit = {}, onOpenGoals: () -> Unit = {}, onOpenFocus: () -> Unit = {}, onOpenMeds: () -> Unit = {}, onOpenEvents: () -> Unit = {}, onOpenNotes: () -> Unit = {}) {
     val tasks by viewModel.tasks.collectAsState()
     val pending = tasks.filter { !it.isCompleted }
     val done = tasks.count { it.isCompleted }
@@ -69,6 +69,7 @@ fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, 
             OutlinedButton(onClick = onOpenGoals) { Text("🎯 الأهداف") }
             OutlinedButton(onClick = onOpenFocus) { Text("⏱ تركيز") }
             OutlinedButton(onClick = onOpenMeds) { Text("💊 الأدوية") }
+            OutlinedButton(onClick = onOpenNotes) { Text("📝 ملاحظات") }
             OutlinedButton(onClick = onOpenEvents) { Text("🎂 المناسبات" + eventsLabel) }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
