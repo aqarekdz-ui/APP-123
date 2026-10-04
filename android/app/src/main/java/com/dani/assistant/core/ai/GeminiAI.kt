@@ -330,6 +330,14 @@ class GeminiAI {
         throw last ?: IllegalStateException("no model")
     }
 
+    /** نصيحة قصيرة للمراجعة الأسبوعية من ملخص الأسبوع. */
+    suspend fun weeklyAdvice(summary: String): String {
+        val prompt = "أنت مساعد شخصي. هذا ملخص أسبوع المستخدم (مهام، مصاريف بالدينار الجزائري، عادات). " +
+            "اكتب نصيحة قصيرة جداً (جملتين أو ثلاث) بالدارجة الجزائرية: شجّعه على شيء إيجابي في الأرقام، ونبّهه على نقطة وحدة تستاهل التحسين مع اقتراح عملي للأسبوع الجاي. " +
+            "اعتمد على الأرقام المذكورة فقط ولا تخترع معلومات. بدون markdown ولا قوائم.\n\n" + summary
+        return generate(prompt)?.trim().orEmpty()
+    }
+
     // Returns a short task title if the message contains a task/reminder/appointment, else null
     /** يكتب إعلاناً عقارياً جاهزاً للنشر من بيانات العقار. */
     suspend fun writeAd(details: String, contact: String): String {

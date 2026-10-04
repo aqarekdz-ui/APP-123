@@ -41,6 +41,9 @@ class DaniApplication : Application() {
         // نسخة احتياطية أسبوعية تلقائية (WorkManager)
         try { com.dani.assistant.core.backup.AutoBackup.schedule(this) } catch (e: Exception) { }
 
+        // مراجعة أسبوعية (أحد 19:00)
+        try { com.dani.assistant.core.digest.WeeklyReview.schedule(this) } catch (e: Exception) { }
+
         // مصاريف ثابتة شهرية (تسجيل تلقائي)
         try { com.dani.assistant.core.money.RecurringExpenses.schedule(this) } catch (e: Exception) { }
         Thread { try { com.dani.assistant.core.money.RecurringExpenses.runAndNotify(this) } catch (e: Exception) { } }.start()

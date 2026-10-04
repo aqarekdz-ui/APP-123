@@ -166,6 +166,11 @@ object LifeCommands {
         // 1b) الميزانية
         if (has(n, "ميزانيه", "ميزانيات", "ميزانيتي", "ميزانيتى")) budgetCommand(ctx, n, amt)?.let { return it }
 
+        // 1d) مراجعة الأسبوع
+        if (has(n, "مراجعه الاسبوع", "مراجعه اسبوعيه", "ملخص الاسبوع", "مراجعه اسبوعي") && amt == null) {
+            return com.dani.assistant.core.digest.WeeklyReview.full(ctx)
+        }
+
         // 1c) مصاريف ثابتة
         if (has(n, "ثابت", "كل شهر", "شهريا")) recurringCommand(ctx, n)?.let { return it }
 

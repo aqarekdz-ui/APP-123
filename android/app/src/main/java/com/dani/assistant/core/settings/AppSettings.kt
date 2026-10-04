@@ -18,6 +18,10 @@ object AppSettings {
     fun digestEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("digest", true)
     fun setDigestEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("digest", v).apply()
 
+    /** المراجعة الأسبوعية بالذكاء الاصطناعي (كل أحد 19:00). */
+    fun weeklyReviewEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("weekly_review", true)
+    fun setWeeklyReviewEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("weekly_review", v).apply()
+
     /** وقت الملخص بالدقائق من منتصف الليل (الافتراضي 08:00). */
     fun digestMinutes(ctx: Context): Int = prefs(ctx).getInt("digest_min", 8 * 60)
     fun setDigestMinutes(ctx: Context, m: Int) = prefs(ctx).edit().putInt("digest_min", m).apply()

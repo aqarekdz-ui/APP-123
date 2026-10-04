@@ -53,6 +53,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var localFirst by remember { mutableStateOf(AppSettings.localFirst(context)) }
     var digestOn by remember { mutableStateOf(AppSettings.digestEnabled(context)) }
     var digestMin by remember { mutableStateOf(AppSettings.digestMinutes(context)) }
+    var weeklyOn by remember { mutableStateOf(AppSettings.weeklyReviewEnabled(context)) }
     var groqKey by remember { mutableStateOf(ProviderSettings.groqKey(context)) }
     var orKey by remember { mutableStateOf(ProviderSettings.openRouterKey(context)) }
     var knowledgeCount by remember { mutableStateOf(KnowledgeBase.getAll(context).size) }
@@ -128,6 +129,16 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }, digestMin / 60, digestMin % 60, true).show()
                 }) { Text("تغيير") }
             }
+        }
+
+        SettingSwitch(
+            title = "مراجعة أسبوعية بالذكاء الاصطناعي",
+            desc = "كل أحد على 19:00 إشعار بملخص الأسبوع (المنجز، المصاريف، العادات) مع نصيحة قصيرة. تقدر تطلبها في أي وقت من الشات: \"مراجعة الأسبوع\".",
+            checked = weeklyOn
+        ) {
+            weeklyOn = it
+            AppSettings.setWeeklyReviewEnabled(context, it)
+            com.dani.assistant.core.digest.WeeklyReview.schedule(context)
         }
 
         // ---- الصوت الجزائري ----
