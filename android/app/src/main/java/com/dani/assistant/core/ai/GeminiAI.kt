@@ -236,6 +236,45 @@ class GeminiAI {
             throw last ?: IllegalStateException("no model")
         }
 
+        /** طلب Gemini مع صورة JPEG (base64). يرجع نص JSON. Gemini فقط (Groq/OpenRouter ما يقراوش الصور هنا). */
+        suspend fun visionJson(prompt: String, jpegBase64: String): String = withContext(Dispatchers.IO) {
+            val body = JSONObject()
+                .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray()
+                    .put(JSONObject().put("text", prompt))
+                    .put(JSONObject().put("inline_data", JSONObject().put("mime_type", "image/jpeg").put("data", jpegBase64))))))
+                .put("generationConfig", JSONObject().put("responseMimeType", "application/json"))
+                .toString()
+            val now = System.currentTimeMillis()
+            val models = GEMINI_MODELS.filter { (cooldownUntil["gemini:" + it] ?: 0L) <= now }.ifEmpty { GEMINI_MODELS }
+            var last: Exception? = null
+            for (m in models) {
+                val conn = URL("https://generativelanguage.googleapis.com/v1beta/models/" + m + ":generateContent").openConnection() as HttpURLConnection
+                try {
+                    conn.requestMethod = "POST"
+                    conn.connectTimeout = 15_000
+                    conn.readTimeout = 90_000
+                    conn.doOutput = true
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.setRequestProperty("x-goog-api-key", API_KEY)
+                    conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                    val code = conn.responseCode
+                    val text = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
+                    if (code !in 200..299) throw IOException("HTTP " + code + " " + text.take(300))
+                    val out = geminiText(JSONObject(text)).trim()
+                    if (out.isBlank()) throw IllegalStateException("empty reply")
+                    return@withContext out
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    cooldownUntil["gemini:" + m] = System.currentTimeMillis() + cooldownFor(e)
+                    last = e
+                } finally {
+                    conn.disconnect()
+                }
+            }
+            throw last ?: IllegalStateException("no model")
+        }
+
         fun friendlyError(e: Throwable): String {
             val t = errText(e)
             return when {

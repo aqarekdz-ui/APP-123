@@ -43,7 +43,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, onOpenRealEstate: () -> Unit = {}, onOpenHabits: () -> Unit = {}, onOpenMoney: () -> Unit = {}, onOpenGoals: () -> Unit = {}, onOpenFocus: () -> Unit = {}, onOpenMeds: () -> Unit = {}, onOpenEvents: () -> Unit = {}, onOpenNotes: () -> Unit = {}, onOpenSearch: () -> Unit = {}) {
+fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, onOpenRealEstate: () -> Unit = {}, onOpenHabits: () -> Unit = {}, onOpenMoney: () -> Unit = {}, onOpenGoals: () -> Unit = {}, onOpenFocus: () -> Unit = {}, onOpenMeds: () -> Unit = {}, onOpenEvents: () -> Unit = {}, onOpenNotes: () -> Unit = {}, onOpenSearch: () -> Unit = {}, onOpenReceipt: () -> Unit = {}) {
     val tasks by viewModel.tasks.collectAsState()
     val pending = tasks.filter { !it.isCompleted }
     val done = tasks.count { it.isCompleted }
@@ -68,6 +68,7 @@ fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, 
         Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onOpenHabits) { Text("✅ العادات" + habitsLabel) }
             OutlinedButton(onClick = onOpenMoney) { Text("💰 المال") }
+            OutlinedButton(onClick = onOpenReceipt) { Text("🧾 فاتورة") }
             OutlinedButton(onClick = onOpenRealEstate) { Text("🏠 العقار") }
             OutlinedButton(onClick = onOpenGoals) { Text("🎯 الأهداف") }
             OutlinedButton(onClick = onOpenFocus) { Text("⏱ تركيز") }
