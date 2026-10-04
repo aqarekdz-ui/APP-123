@@ -124,6 +124,7 @@ object MedStore {
         if (taken) out.put(JSONObject().put("day", day).put("med", medId).put("t", minute).put("ts", System.currentTimeMillis()))
         root.put("log", out)
         writeRoot(ctx, root)
+        try { com.dani.assistant.widget.DailyWidgetProvider.refresh(ctx) } catch (e: Exception) { }
     }
 
     private fun dayStart(): Long {

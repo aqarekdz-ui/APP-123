@@ -96,6 +96,7 @@ object HabitStore {
             o.put("days", JSONArray(days.sorted()))
         }
         writeRoot(ctx, root)
+        try { com.dani.assistant.widget.DailyWidgetProvider.refresh(ctx) } catch (e: Exception) { }
     }
 
     fun exportJson(ctx: Context): JSONObject = JSONObject().put("habits", readRoot(ctx).optJSONArray("habits") ?: JSONArray())

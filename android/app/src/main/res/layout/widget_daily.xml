@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/d_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/widget_bg">
+
+    <TextView
+        android:id="@+id/d_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="DANI · اليوم"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView android:id="@+id/d_h1" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:maxLines="1" android:ellipsize="end" android:textColor="#E2E8F0" android:textSize="13sp" />
+    <TextView android:id="@+id/d_h2" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:maxLines="1" android:ellipsize="end" android:textColor="#E2E8F0" android:textSize="13sp" />
+    <TextView android:id="@+id/d_h3" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:maxLines="1" android:ellipsize="end" android:textColor="#E2E8F0" android:textSize="13sp" />
+    <TextView android:id="@+id/d_h4" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:maxLines="1" android:ellipsize="end" android:textColor="#E2E8F0" android:textSize="13sp" />
+    <View android:id="@+id/d_sep" android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="2dp" android:layout_marginBottom="2dp" android:background="#334155" />
+    <TextView android:id="@+id/d_m1" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:maxLines="1" android:ellipsize="end" android:textColor="#E2E8F0" android:textSize="13sp" />
+    <TextView android:id="@+id/d_m2" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:maxLines="1" android:ellipsize="end" android:textColor="#E2E8F0" android:textSize="13sp" />
+    <TextView android:id="@+id/d_m3" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:maxLines="1" android:ellipsize="end" android:textColor="#E2E8F0" android:textSize="13sp" />
+    <TextView android:id="@+id/d_m4" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:maxLines="1" android:ellipsize="end" android:textColor="#E2E8F0" android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/d_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="زيد عادات أو أدوية من التطبيق"
+        android:textColor="#94A3B8"
+        android:textSize="13sp"
+        android:visibility="gone" />
+</LinearLayout>
