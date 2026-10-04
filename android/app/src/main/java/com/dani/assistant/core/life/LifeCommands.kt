@@ -7,6 +7,8 @@ import com.dani.assistant.core.habits.HabitStore
 import com.dani.assistant.core.money.BudgetAlerts
 import com.dani.assistant.core.money.MoneyEntry
 import com.dani.assistant.core.money.MoneyStore
+import com.dani.assistant.core.money.RecurringExpenses
+import com.dani.assistant.core.money.RecurringItem
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -164,6 +166,9 @@ object LifeCommands {
         // 1b) الميزانية
         if (has(n, "ميزانيه", "ميزانيات", "ميزانيتي", "ميزانيتى")) budgetCommand(ctx, n, amt)?.let { return it }
 
+        // 1c) مصاريف ثابتة
+        if (has(n, "ثابت", "كل شهر", "شهريا")) recurringCommand(ctx, n)?.let { return it }
+
         val qWord = Regex("(^|\\s)(كم|قداش|شحال)(\\s|$)").containsMatchIn(n) || n.contains('؟') || n.contains('?')
 
         // 2) أسئلة
@@ -271,6 +276,42 @@ object LifeCommands {
         }
         if (all.isEmpty()) return "ما عندكش ميزانيات. قول مثلا: \"ميزانية الأكل 20000\" ولا من شاشة المال ← الميزانية."
         return "🎯 ميزانيات هذا الشهر:\n" + all.entries.joinToString("\n") { budgetLine(ctx, it.key, it.value) }
+    }
+
+    // ---------------- recurring ----------------
+    private val dayRe = Regex("يوم\\s*(\\d{1,2})(?!\\d)")
+    private val recStrip = Regex("(مصروف|مصاريف|مصاريفي|ثابت|ثابته|الثابته|كل|شهر|شهريا|يوم|صرف|ندفع|ندير|زيد|سجل|اضف|دج|دينار)")
+
+    private fun recurringCommand(ctx: Context, n: String): String? {
+        val items = RecurringExpenses.list(ctx)
+        // حذف
+        if (has(n, "الغي", "امسح", "احذف")) {
+            val hit = items.firstOrNull { it.name.length >= 2 && n.contains(norm(it.name)) } ?: return null
+            RecurringExpenses.delete(ctx, hit.id)
+            return "🗑 لغيت المصروف الثابت: " + hit.name
+        }
+        val dm = dayRe.find(n)
+        val n2 = if (dm != null) n.replace(dayRe, " ") else n
+        val amt = findAmount(n2)
+        // عرض
+        if (amt == null) {
+            if (!has(n, "مصاريف", "مصاريفي", "مصروف")) return null
+            if (items.isEmpty()) return "ما عندكش مصاريف ثابتة. قول مثلا: \"مصروف ثابت كراء 30000 يوم 5\" ولا من شاشة المال ← 🔁 ثابتة."
+            return "🔁 مصاريفك الثابتة:\n" + items.joinToString("\n") {
+                (if (it.active) "• " else "⏸ ") + it.name + " — " + MoneyStore.fmt(it.amount) + " (يوم " + it.day + ")"
+            } + "\nالمجموع: " + MoneyStore.fmt(items.filter { it.active }.sumOf { it.amount })
+        }
+        // إضافة
+        if (!has(n, "مصروف", "مصاريف", "كراء", "فاتوره", "اشتراك", "ندفع", "ندير", "سجل", "زيد", "اضف")) return null
+        val day = (dm?.groupValues?.get(1)?.toIntOrNull() ?: 1).coerceIn(1, 28)
+        val noteRaw = noteOf(n2, amt)
+        var name = recStrip.replace(noteRaw, " ").replace(Regex("\\s+"), " ").trim()
+        while (notePrefix.containsMatchIn(name)) name = notePrefix.replace(name, "")
+        val cat = expenseCategory(n2)
+        if (name.isBlank()) name = cat
+        val exist = items.firstOrNull { it.name == name }
+        RecurringExpenses.save(ctx, RecurringItem(id = exist?.id ?: 0L, name = name, amount = amt.value, category = cat, day = day, active = exist?.active ?: true, last = exist?.last ?: -1))
+        return "🔁 سجلت مصروف ثابت: " + name + " — " + MoneyStore.fmt(amt.value) + " كل شهر يوم " + day + " (" + cat + ")\nيتسجل لوحدو. لإلغائه قول \"الغي المصروف الثابت " + name + "\"."
     }
 
     // ---------------- actions ----------------

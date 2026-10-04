@@ -43,6 +43,8 @@ import com.dani.assistant.DaniApplication
 import com.dani.assistant.core.money.BudgetAlerts
 import com.dani.assistant.core.money.MoneyEntry
 import com.dani.assistant.core.money.MoneyStore
+import com.dani.assistant.core.money.RecurringExpenses
+import com.dani.assistant.core.money.RecurringItem
 import com.dani.assistant.domain.model.PriorityLevel
 import com.dani.assistant.domain.model.ReminderType
 import com.dani.assistant.domain.model.Task
@@ -123,10 +125,11 @@ fun MoneyScreen(onBack: () -> Unit) {
             Text("💰 المال", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             TextButton(onClick = onBack) { Text("رجوع") }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = tab == 0, onClick = { tab = 0 }, label = { Text("المصاريف والمداخيل") })
             FilterChip(selected = tab == 1, onClick = { tab = 1 }, label = { Text("الديون") })
             FilterChip(selected = tab == 2, onClick = { tab = 2 }, label = { Text("🎯 الميزانية") })
+            FilterChip(selected = tab == 3, onClick = { tab = 3 }, label = { Text("🔁 ثابتة") })
         }
 
         if (tab == 0) {
@@ -206,8 +209,10 @@ fun MoneyScreen(onBack: () -> Unit) {
                     }
                 }
             }
-        } else {
+        } else if (tab == 2) {
             BudgetTab(entries)
+        } else {
+            RecurringTab(onChanged = { refresh() })
         }
     }
 
@@ -324,6 +329,68 @@ private fun ColumnScope.BudgetTab(entries: List<MoneyEntry>) {
                     TextButton(onClick = { editCat = null }) { Text("إلغاء") }
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun ColumnScope.RecurringTab(onChanged: () -> Unit) {
+    val context = LocalContext.current
+    var rows by remember { mutableStateOf(RecurringExpenses.list(context)) }
+    var edit by remember { mutableStateOf<RecurringItem?>(null) }
+    fun reload() { rows = RecurringExpenses.list(context) }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("🔁 تتسجل لوحدها كل شهر", fontWeight = FontWeight.Bold)
+            Text("المجموع الشهري: " + MoneyStore.fmt(rows.filter { it.active }.sumOf { it.amount }), fontSize = 13.sp)
+        }
+    }
+    Button(onClick = { edit = RecurringItem(id = 0, name = "", amount = 0) }) { Text("➕ مصروف ثابت جديد") }
+    if (rows.isEmpty()) Text("ما كاينش مصاريف ثابتة (كراء، فواتير، اشتراكات...).", color = MaterialTheme.colorScheme.outline)
+    LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        items(rows, key = { it.id }) { r ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text((if (r.active) "" else "⏸ ") + r.name + " — " + MoneyStore.fmt(r.amount), fontWeight = FontWeight.Bold)
+                    Text(r.category + " • كل شهر يوم " + r.day, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                    Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                        TextButton(onClick = { RecurringExpenses.save(context, r.copy(active = !r.active)); reload() }) { Text(if (r.active) "⏸ وقف" else "▶ شغّل") }
+                        TextButton(onClick = { edit = r }) { Text("✏️") }
+                        TextButton(onClick = { RecurringExpenses.delete(context, r.id); reload() }) { Text("🗑") }
+                    }
+                }
+            }
+        }
+    }
+    edit?.let { er ->
+        var name by remember(er.id) { mutableStateOf(er.name) }
+        var amount by remember(er.id) { mutableStateOf(if (er.amount > 0) er.amount.toString() else "") }
+        var cat by remember(er.id) { mutableStateOf(er.category) }
+        var day by remember(er.id) { mutableStateOf(er.day.toString()) }
+        AlertDialog(
+            onDismissRequest = { edit = null },
+            title = { Text(if (er.id == 0L) "مصروف ثابت جديد" else "تعديل المصروف الثابت") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("الاسم (كراء، انترنت...)") }, singleLine = true)
+                    OutlinedTextField(
+                        value = amount, onValueChange = { amount = it.filter { c -> c.isDigit() } }, label = { Text("المبلغ (دج)") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    Chips(MoneyStore.expenseCategories.map { it to it }, cat) { cat = it }
+                    OutlinedTextField(
+                        value = day, onValueChange = { day = it.filter { c -> c.isDigit() }.take(2) }, label = { Text("يوم الشهر (1-28)") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(enabled = name.isNotBlank() && digits(amount) > 0, onClick = {
+                    RecurringExpenses.save(context, er.copy(name = name.trim(), amount = digits(amount), category = cat.ifBlank { "أخرى" }, day = (day.toIntOrNull() ?: 1).coerceIn(1, 28)))
+                    reload(); onChanged(); edit = null
+                }) { Text("حفظ") }
+            },
+            dismissButton = { TextButton(onClick = { edit = null }) { Text("إلغاء") } }
         )
     }
 }
