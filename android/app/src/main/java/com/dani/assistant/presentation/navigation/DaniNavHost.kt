@@ -36,7 +36,7 @@ fun DaniNavHost(
                     alarmScheduler = app.alarmScheduler
                 )
             )
-            DashboardScreen(viewModel = viewModel, onOpenSettings = { navController.navigate("settings") }, onOpenRealEstate = { navController.navigate("realestate") }, onOpenHabits = { navController.navigate("habits") }, onOpenMoney = { navController.navigate("money") }, onOpenGoals = { navController.navigate("goals") }, onOpenFocus = { navController.navigate("focus") }, onOpenMeds = { navController.navigate("meds") }, onOpenEvents = { navController.navigate("events") }, onOpenNotes = { navController.navigate("notes") })
+            DashboardScreen(viewModel = viewModel, onOpenSettings = { navController.navigate("settings") }, onOpenRealEstate = { navController.navigate("realestate") }, onOpenHabits = { navController.navigate("habits") }, onOpenMoney = { navController.navigate("money") }, onOpenGoals = { navController.navigate("goals") }, onOpenFocus = { navController.navigate("focus") }, onOpenMeds = { navController.navigate("meds") }, onOpenEvents = { navController.navigate("events") }, onOpenNotes = { navController.navigate("notes") }, onOpenSearch = { navController.navigate("search") })
         }
         composable(Screen.Tasks.route) {
             val app = DaniApplication.instance
@@ -66,6 +66,9 @@ fun DaniNavHost(
         }
         composable("money") {
             MoneyScreen(onBack = { navController.popBackStack() })
+        }
+        composable("search") {
+            com.dani.assistant.presentation.search.SearchScreen(onBack = { navController.popBackStack() }, onOpen = { r -> navController.navigate(r) })
         }
         composable("notes") {
             com.dani.assistant.presentation.notes.NotesScreen(onBack = { navController.popBackStack() })

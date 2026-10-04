@@ -162,6 +162,11 @@ object LifeCommands {
         // 0) الملاحظات (قبل "الغي آخر")
         com.dani.assistant.core.notes.NoteCommands.handle(ctx, s, n)?.let { return it }
 
+        // 0b) بحث شامل
+        Regex("(?:بحث شامل|دور في كلشي|دور في كل شي|لقي كلشي|فتش في كلشي)\\s*(?:على|عن|ب)?\\s*(.{2,})").find(n)?.let { m ->
+            return com.dani.assistant.core.search.GlobalSearch.chatReply(ctx, m.groupValues[1])
+        }
+
         // 1) إلغاء آخر عملية
         if (has(n, "الغي اخر", "امسح اخر", "احذف اخر", "تراجع عن اخر", "الغي التسجيل", "الغي العمليه")) return undoLast(ctx)
 
