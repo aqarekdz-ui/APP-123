@@ -154,7 +154,10 @@ fun MoneyScreen(onBack: () -> Unit) {
                     if (byCat.isNotEmpty()) Text(byCat.joinToString("  •  ") { it.first + " " + MoneyStore.fmt(it.second) }, fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
                 }
             }
-            Button(onClick = { editTx = MoneyEntry(id = 0, type = "expense", amount = 0) }) { Text("➕ عملية جديدة") }
+            Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { editTx = MoneyEntry(id = 0, type = "expense", amount = 0) }) { Text("➕ عملية جديدة") }
+                MoneyToolsRow(entries, start, end, monthTitle(monthOffset))
+            }
             if (month.isEmpty()) Text("ما كاينش عمليات في هذا الشهر.", color = MaterialTheme.colorScheme.outline)
             LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(month, key = { it.id }) { e ->
