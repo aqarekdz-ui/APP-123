@@ -108,6 +108,8 @@ fun SettingsScreen(onBack: () -> Unit) {
         ) { localFirst = it; AppSettings.setLocalFirst(context, it) }
 
         // ---- الملخص الصباحي ----
+        AlarmReliabilityCard()
+
         Text("التنبيهات", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         SettingSwitch(
             title = "ملخص صباحي يومي",

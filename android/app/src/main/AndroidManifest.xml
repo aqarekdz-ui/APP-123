@@ -18,6 +18,7 @@
 
     <!-- إلزامي للمنبه الصوتي: إيقاظ المعالج والشاشة مؤقتاً عند حلول موعد المنبه الحرج -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- إلزامي: تشغيل الاهتزاز مع رنين المنبه لتنبيه المستخدم -->
     <uses-permission android:name="android.permission.VIBRATE" />
