@@ -166,6 +166,22 @@ object LifeCommands {
         // 1b) الميزانية
         if (has(n, "ميزانيه", "ميزانيات", "ميزانيتي", "ميزانيتى")) budgetCommand(ctx, n, amt)?.let { return it }
 
+        // 1g) مؤقت التركيز
+        if (has(n, "بومودورو", "pomodoro", "ابدا تركيز", "ابدأ تركيز", "نبدا تركيز", "نبدأ تركيز", "وقف التركيز", "وقف تركيز", "كم ركزت", "قداش ركزت", "شحال ركزت", "تركيز اليوم")) {
+            if (has(n, "وقف")) {
+                val st = com.dani.assistant.core.focus.PomodoroTimer.state(ctx)
+                if (st.phase == "idle") return "⏱ ما كاين حتى مؤقت شغال."
+                com.dani.assistant.core.focus.PomodoroTimer.stop(ctx)
+                return "⏹ وقفت المؤقت."
+            }
+            if (has(n, "كم ركزت", "قداش ركزت", "شحال ركزت", "تركيز اليوم")) return com.dani.assistant.core.focus.PomodoroTimer.summaryToday(ctx)
+            val st = com.dani.assistant.core.focus.PomodoroTimer.state(ctx)
+            if (st.phase != "idle") return "⏱ المؤقت شغال (" + (if (st.phase == "focus") "تركيز" else "راحة") + ")، افتح الرئيسية ← ⏱ تركيز."
+            val mins = (Regex("(\\d{1,2})\\s*(?:د|دقيقه|دقايق|min)?").find(n)?.groupValues?.get(1)?.toIntOrNull() ?: 25).let { if (it in 5..90) it else 25 }
+            com.dani.assistant.core.focus.PomodoroTimer.startFocus(ctx, mins)
+            return "🍅 بدينا تركيز " + mins + " دقيقة. ننبهك كي تخلص (الإشعار فيه العدّ التنازلي)."
+        }
+
         // 1f) هدف كبير: "هدف جديد: نتعلم الإنجليزية" ← يتقسم لمهام بالذكاء الاصطناعي
         goalRe.find(s)?.let { m ->
             val text = m.groupValues[2].trim().trim('.', '،', '!')

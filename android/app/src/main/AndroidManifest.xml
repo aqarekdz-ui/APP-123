@@ -86,6 +86,11 @@
             android:name=".core.digest.MorningDigestReceiver"
             android:exported="false" />
 
+        <!-- مؤقت التركيز (Pomodoro) -->
+        <receiver
+            android:name=".core.focus.PomodoroReceiver"
+            android:exported="false" />
+
         <!-- ودجت المهام القادمة -->
         <receiver
             android:name=".widget.TaskWidgetProvider"

@@ -82,6 +82,9 @@ object WeeklyReview {
             })
         }
 
+        val (fn, fm) = com.dani.assistant.core.focus.FocusLog.stats(ctx, 6)
+        if (fn > 0) sb.append("\n\n🍅 التركيز: ").append(fn).append(" جلسات (").append(fm / 60).append("س ").append(fm % 60).append("د)")
+
         val habits = HabitStore.list(ctx)
         if (habits.isNotEmpty()) {
             sb.append("\n\n🔥 العادات (من 7):")

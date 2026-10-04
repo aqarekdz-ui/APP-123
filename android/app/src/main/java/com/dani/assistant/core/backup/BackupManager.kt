@@ -8,6 +8,7 @@ import com.dani.assistant.core.memory.MemoryStore
 import com.dani.assistant.core.memory.SecretStore
 import com.dani.assistant.core.realestate.RealEstateStore
 import com.dani.assistant.core.habits.HabitStore
+import com.dani.assistant.core.focus.FocusLog
 import com.dani.assistant.core.goals.GoalStore
 import com.dani.assistant.core.money.MoneyStore
 import com.dani.assistant.core.money.RecurringExpenses
@@ -40,7 +41,8 @@ data class ImportResult(
     val habits: Int = 0,
     val money: Int = 0,
     val recurring: Int = 0,
-    val goals: Int = 0
+    val goals: Int = 0,
+    val focus: Int = 0
 )
 
 /** نسخة احتياطية موحّدة: مهام + معلومات + معرفة + رسائل الشات + أسرار (مشفّرة بكلمة سر النسخة، اختيارية). */
@@ -161,6 +163,7 @@ object BackupManager {
             .put("money", MoneyStore.exportJson(ctx))
             .put("recurring", RecurringExpenses.exportJson(ctx))
             .put("goals", GoalStore.exportJson(ctx))
+            .put("focus", FocusLog.exportJson(ctx))
         if (pass.isNotEmpty()) {
             val secrets = SecretStore.getAll(ctx)
             if (secrets.isNotEmpty()) {
@@ -238,6 +241,7 @@ object BackupManager {
         // العقار (عملاء + عقارات)
         val reAdded = root.optJSONObject("realestate")?.let { RealEstateStore.importJson(ctx, it) } ?: 0
         val habitsAdded = root.optJSONObject("habits")?.let { HabitStore.importJson(ctx, it) } ?: 0
+        val focusAdded = root.optJSONObject("focus")?.let { FocusLog.importJson(ctx, it) } ?: 0
         val moneyAdded = root.optJSONObject("money")?.let { MoneyStore.importJson(ctx, it) } ?: 0
         val recurringAdded = root.optJSONObject("recurring")?.let { RecurringExpenses.importJson(ctx, it) } ?: 0
 
@@ -255,6 +259,6 @@ object BackupManager {
                 secretsAdded = SecretStore.getAll(ctx).size - before
             }
         }
-        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped, chatAdded, reAdded, habitsAdded, moneyAdded, recurringAdded, goalsAdded)
+        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped, chatAdded, reAdded, habitsAdded, moneyAdded, recurringAdded, goalsAdded, focusAdded)
     }
 }
