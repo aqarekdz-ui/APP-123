@@ -20,6 +20,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.flow.map
 
+data class GoalStep(val title: String, val day: Int, val minutes: Int, val priority: String)
+
 data class ParsedTask(
     val title: String,
     val dueDate: Long?,
@@ -328,6 +330,27 @@ class GeminiAI {
             }
         }
         throw last ?: IllegalStateException("no model")
+    }
+
+    /** يقسّم هدفاً كبيراً إلى 5-10 مهام عملية موزعة على المدة (أيام من اليوم). */
+    suspend fun planGoal(goal: String, horizonDays: Int): List<GoalStep> {
+        val prompt = "قسّم هدف المستخدم إلى مهام عملية صغيرة ومرتبة زمنياً، موزعة على " + horizonDays + " يوماً من اليوم. " +
+            "القواعد: من 5 إلى 10 مهام؛ كل مهمة عنوان قصير بالدارجة الجزائرية/العربية المبسطة يبدأ بفعل؛ " +
+            "الأيام تصاعدية بين 1 و" + horizonDays + "؛ المهمة الأولى سهلة وتبدأ فوراً؛ لا تخترع أرقاماً أو أسماء أو أماكن غير مذكورة. " +
+            "أرجع JSON فقط بدون أي نص آخر: [{\"title\": \"...\", \"day\": 1, \"minutes\": 30, \"priority\": \"High|Medium|Low\"}].\n\nالهدف: " + goal
+        val raw = generate(prompt) ?: return emptyList()
+        val t = cleanJson(raw)
+        val a = t.indexOf('['); val b = t.lastIndexOf(']')
+        if (a < 0 || b <= a) return emptyList()
+        val arr = JSONArray(t.substring(a, b + 1))
+        val out = ArrayList<GoalStep>()
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            val title = o.optString("title", "").trim()
+            if (title.isBlank()) continue
+            out.add(GoalStep(title.take(100), o.optInt("day", i + 1).coerceIn(1, horizonDays.coerceAtLeast(1)), o.optInt("minutes", 30).coerceIn(10, 180), o.optString("priority", "Medium")))
+        }
+        return out.take(10)
     }
 
     /** نصيحة قصيرة للمراجعة الأسبوعية من ملخص الأسبوع. */

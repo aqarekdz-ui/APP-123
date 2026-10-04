@@ -43,7 +43,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, onOpenRealEstate: () -> Unit = {}, onOpenHabits: () -> Unit = {}, onOpenMoney: () -> Unit = {}) {
+fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, onOpenRealEstate: () -> Unit = {}, onOpenHabits: () -> Unit = {}, onOpenMoney: () -> Unit = {}, onOpenGoals: () -> Unit = {}) {
     val tasks by viewModel.tasks.collectAsState()
     val pending = tasks.filter { !it.isCompleted }
     val done = tasks.count { it.isCompleted }
@@ -64,6 +64,7 @@ fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, 
             OutlinedButton(onClick = onOpenHabits) { Text("✅ العادات" + habitsLabel) }
             OutlinedButton(onClick = onOpenMoney) { Text("💰 المال") }
             OutlinedButton(onClick = onOpenRealEstate) { Text("🏠 العقار") }
+            OutlinedButton(onClick = onOpenGoals) { Text("🎯 الأهداف") }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatCard("متبقية", pending.size.toString(), Modifier.weight(1f))

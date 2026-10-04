@@ -166,6 +166,25 @@ object LifeCommands {
         // 1b) الميزانية
         if (has(n, "ميزانيه", "ميزانيات", "ميزانيتي", "ميزانيتى")) budgetCommand(ctx, n, amt)?.let { return it }
 
+        // 1f) هدف كبير: "هدف جديد: نتعلم الإنجليزية" ← يتقسم لمهام بالذكاء الاصطناعي
+        goalRe.find(s)?.let { m ->
+            val text = m.groupValues[2].trim().trim('.', '،', '!')
+            if (text.length >= 4) {
+                val horizon = when {
+                    has(n, "اسبوع") -> 7
+                    has(n, "3 اشهر", "ثلاث اشهر", "ثلاثه اشهر", "سنه", "6 اشهر") -> 90
+                    else -> 30
+                }
+                val (g, msg) = com.dani.assistant.core.goals.GoalPlanner.create(ctx, text, horizon)
+                if (g == null) return "🎯 " + msg
+                val tasks = DaniApplication.instance.taskRepository.getAllTasks().first().filter { g.taskIds.contains(it.id) }.sortedBy { it.dueDate }
+                val f = SimpleDateFormat("dd/MM", Locale.getDefault())
+                return "🎯 هدفك: " + g.title + "\nقسّمتو لـ " + tasks.size + " مهام (تلقاهم في المهام والتقويم):\n" +
+                    tasks.joinToString("\n") { "• " + (it.dueDate?.let { d -> f.format(Date(d)) } ?: "") + " — " + it.title } +
+                    "\n📊 تابع التقدم من الرئيسية ← 🎯 الأهداف."
+            }
+        }
+
         // 1e) خطة اليوم
         if (amt == null && has(n, "خطه اليوم", "خطه غدوه", "خطه غدا", "رتب يومي", "رتب ليوم", "رتبلي", "رتب مهامي", "نظم يومي", "نظملي")) {
             return DayPlanner.plan(if (has(n, "غدوه", "غدا")) 1 else 0)
@@ -289,6 +308,7 @@ object LifeCommands {
     }
 
     // ---------------- recurring ----------------
+    private val goalRe = Regex("^(هدف جديد|حدد هدف|عندي هدف|هدفي)\\s*(?:هو|هي|:|ان|أن|إن)?\\s*(.{4,})$")
     private val dayRe = Regex("يوم\\s*(\\d{1,2})(?!\\d)")
     private val recStrip = Regex("(مصروف|مصاريف|مصاريفي|ثابت|ثابته|الثابته|كل|شهر|شهريا|يوم|صرف|ندفع|ندير|زيد|سجل|اضف|دج|دينار)")
 

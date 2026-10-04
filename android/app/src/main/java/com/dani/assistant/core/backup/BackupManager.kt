@@ -8,6 +8,7 @@ import com.dani.assistant.core.memory.MemoryStore
 import com.dani.assistant.core.memory.SecretStore
 import com.dani.assistant.core.realestate.RealEstateStore
 import com.dani.assistant.core.habits.HabitStore
+import com.dani.assistant.core.goals.GoalStore
 import com.dani.assistant.core.money.MoneyStore
 import com.dani.assistant.core.money.RecurringExpenses
 import com.dani.assistant.core.areas.AreaStore
@@ -38,7 +39,8 @@ data class ImportResult(
     val realestate: Int = 0,
     val habits: Int = 0,
     val money: Int = 0,
-    val recurring: Int = 0
+    val recurring: Int = 0,
+    val goals: Int = 0
 )
 
 /** نسخة احتياطية موحّدة: مهام + معلومات + معرفة + رسائل الشات + أسرار (مشفّرة بكلمة سر النسخة، اختيارية). */
@@ -135,6 +137,7 @@ object BackupManager {
                     .put("completed", it.completedAt ?: JSONObject.NULL)
                     .put("rec", it.recurrence.name)
                     .put("area", AreaStore.get(ctx, it.id) ?: JSONObject.NULL)
+                    .put("goal", GoalStore.goalOf(ctx, it.id) ?: JSONObject.NULL)
                     .put("subs", JSONArray().also { a -> it.subtasks.forEach { s -> a.put(JSONObject().put("t", s.text).put("d", s.done)) } })
             )
         }
@@ -157,6 +160,7 @@ object BackupManager {
             .put("habits", HabitStore.exportJson(ctx))
             .put("money", MoneyStore.exportJson(ctx))
             .put("recurring", RecurringExpenses.exportJson(ctx))
+            .put("goals", GoalStore.exportJson(ctx))
         if (pass.isNotEmpty()) {
             val secrets = SecretStore.getAll(ctx)
             if (secrets.isNotEmpty()) {
@@ -170,6 +174,9 @@ object BackupManager {
     suspend fun import(ctx: Context, json: String, pass: String): ImportResult {
         val root = JSONObject(json)
         val repo = DaniApplication.instance.taskRepository
+
+        // الأهداف أولاً (باش نربطو المهام المستوردة بيها)
+        val goalsAdded = root.optJSONObject("goals")?.let { GoalStore.importJson(ctx, it) } ?: 0
 
         // المهام
         val existing = repo.getAllTasks().first().map { it.title + "|" + it.createdAt }.toMutableSet()
@@ -202,6 +209,7 @@ object BackupManager {
             )
             val id = repo.insertTask(task)
             if (!o.isNull("area")) AreaStore.set(ctx, id, o.getString("area"))
+            if (o.has("goal") && !o.isNull("goal")) GoalStore.attachTask(ctx, o.getLong("goal"), id)
             tasksAdded++
             if (due != null && due > System.currentTimeMillis() &&
                 status != TaskStatus.COMPLETED && status != TaskStatus.CANCELLED
@@ -247,6 +255,6 @@ object BackupManager {
                 secretsAdded = SecretStore.getAll(ctx).size - before
             }
         }
-        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped, chatAdded, reAdded, habitsAdded, moneyAdded, recurringAdded)
+        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped, chatAdded, reAdded, habitsAdded, moneyAdded, recurringAdded, goalsAdded)
     }
 }
