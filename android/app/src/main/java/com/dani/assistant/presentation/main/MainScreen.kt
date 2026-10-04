@@ -24,11 +24,17 @@ import com.dani.assistant.presentation.navigation.Screen
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(startRoute: String? = null, onRouteHandled: () -> Unit = {}) {
     val imeVisible = WindowInsets.isImeVisible
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    androidx.compose.runtime.LaunchedEffect(startRoute) {
+        if (startRoute != null) {
+            try { navController.navigate(startRoute) } catch (e: Exception) { }
+            onRouteHandled()
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().imePadding(),

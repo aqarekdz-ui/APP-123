@@ -32,6 +32,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : FragmentActivity() {
     private var locked by mutableStateOf(false)
     private var lastStop = 0L
+    private var startRoute by mutableStateOf<String?>(null)
 
     companion object {
         /** يبقى true أثناء حياة العملية (تدوير الشاشة ما يقفلش). موت العملية = قفل من جديد. */
@@ -44,6 +45,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleShare(intent)
+        readRoute(intent)
 
         locked = AppLock.shouldLock(this) && !sessionUnlocked
 
@@ -76,12 +78,28 @@ class MainActivity : FragmentActivity() {
                             locked = false
                         }
                     } else {
-                        MainScreen()
+                        MainScreen(startRoute = startRoute, onRouteHandled = { startRoute = null })
                     }
                 }
             }
         }
         }
+    }
+
+    private val shortcutRoutes = setOf("notes", "receipt", "money", "dani", "search", "events", "meds", "focus", "habits", "goals")
+
+    private fun readRoute(i: Intent?) {
+        if (i == null) return
+        val r = i.getStringExtra("route") ?: return
+        i.removeExtra("route")
+        if (r in shortcutRoutes) startRoute = r
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShare(intent)
+        readRoute(intent)
     }
 
     /** مشاركة نص/رابط من تطبيق آخر إلى DANI: تتحول لمهمة (العنوان + النص الكامل في الوصف). */

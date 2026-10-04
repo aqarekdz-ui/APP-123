@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="dani_note"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_note"
+        android:shortcutShortLabel="@string/sc_note_short"
+        android:shortcutLongLabel="@string/sc_note_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.dani.assistant"
+            android:targetClass="com.dani.assistant.MainActivity">
+            <extra android:name="route" android:value="notes" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="dani_receipt"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_receipt"
+        android:shortcutShortLabel="@string/sc_receipt_short"
+        android:shortcutLongLabel="@string/sc_receipt_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.dani.assistant"
+            android:targetClass="com.dani.assistant.MainActivity">
+            <extra android:name="route" android:value="receipt" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="dani_money"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_money"
+        android:shortcutShortLabel="@string/sc_money_short"
+        android:shortcutLongLabel="@string/sc_money_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.dani.assistant"
+            android:targetClass="com.dani.assistant.MainActivity">
+            <extra android:name="route" android:value="money" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="dani_chat"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_chat"
+        android:shortcutShortLabel="@string/sc_chat_short"
+        android:shortcutLongLabel="@string/sc_chat_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.dani.assistant"
+            android:targetClass="com.dani.assistant.MainActivity">
+            <extra android:name="route" android:value="dani" />
+        </intent>
+    </shortcut>
+</shortcuts>

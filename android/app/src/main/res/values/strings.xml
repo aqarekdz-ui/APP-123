@@ -5,4 +5,12 @@
     <string name="tab_calendar">التقويم</string>
     <string name="tab_memory">الذاكرة</string>
     <string name="tab_dani">DANI</string>
+    <string name="sc_note_short">ملاحظة</string>
+    <string name="sc_note_long">ملاحظة جديدة (صوت)</string>
+    <string name="sc_receipt_short">فاتورة</string>
+    <string name="sc_receipt_long">تصوير فاتورة ← مصروف</string>
+    <string name="sc_money_short">المال</string>
+    <string name="sc_money_long">المال والميزانية</string>
+    <string name="sc_chat_short">DANI</string>
+    <string name="sc_chat_long">شات DANI</string>
 </resources>

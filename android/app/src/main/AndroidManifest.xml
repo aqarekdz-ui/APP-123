@@ -51,6 +51,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- اختصارات الأيقونة (ضغطة طويلة) -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
             <!-- استقبال نص/رابط من التطبيقات الأخرى (مشاركة إلى DANI) -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
