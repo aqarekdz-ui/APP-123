@@ -4,6 +4,7 @@ import android.content.Context
 import com.dani.assistant.DaniApplication
 import com.dani.assistant.core.habits.Habit
 import com.dani.assistant.core.habits.HabitStore
+import com.dani.assistant.core.meds.MedStore
 import com.dani.assistant.core.money.BudgetAlerts
 import com.dani.assistant.core.money.MoneyEntry
 import com.dani.assistant.core.money.MoneyStore
@@ -166,6 +167,9 @@ object LifeCommands {
         // 1b) الميزانية
         if (has(n, "ميزانيه", "ميزانيات", "ميزانيتي", "ميزانيتى")) budgetCommand(ctx, n, amt)?.let { return it }
 
+        // 1h) الأدوية
+        medCommand(ctx, n)?.let { return it }
+
         // 1g) مؤقت التركيز
         if (has(n, "بومودورو", "pomodoro", "ابدا تركيز", "ابدأ تركيز", "نبدا تركيز", "نبدأ تركيز", "وقف التركيز", "وقف تركيز", "كم ركزت", "قداش ركزت", "شحال ركزت", "تركيز اليوم")) {
             if (has(n, "وقف")) {
@@ -321,6 +325,33 @@ object LifeCommands {
         }
         if (all.isEmpty()) return "ما عندكش ميزانيات. قول مثلا: \"ميزانية الأكل 20000\" ولا من شاشة المال ← الميزانية."
         return "🎯 ميزانيات هذا الشهر:\n" + all.entries.joinToString("\n") { budgetLine(ctx, it.key, it.value) }
+    }
+
+    // ---------------- meds ----------------
+    private fun medCommand(ctx: Context, n: String): String? {
+        val meds = MedStore.list(ctx).filter { MedStore.isLive(it) }
+        if (meds.isEmpty()) return null
+        val doses = MedStore.todayDoses(ctx)
+        val takeVerb = has(n, "اخذت", "خذيت", "شربت", "بلعت", "خذات", "تعاطيت")
+        val generic = has(n, "دواء", "دوا ", "الدوا", "ادويه", "علاج", "حبوبي", "حبه")
+        val named = meds.firstOrNull { it.name.length >= 2 && n.contains(norm(it.name)) }
+        if (takeVerb && (named != null || generic)) {
+            val nowMin = MedStore.nowMinute()
+            val d = doses.filter { !it.taken && (named == null || it.med.id == named.id) }
+                .minByOrNull { Math.abs(it.minute - nowMin) }
+                ?: return "✅ كل جرعات " + (named?.name ?: "اليوم") + " متسجلة."
+            MedStore.mark(ctx, d.med.id, d.minute, true)
+            com.dani.assistant.core.meds.MedAlarms.cancelNotif(ctx, d.med.id, d.minute)
+            val left = doses.count { !it.taken } - 1
+            return "✅ علّمت " + d.med.name + " (" + com.dani.assistant.core.meds.fmtMinute(d.minute) + ")" + (if (left > 0) "\nباقي " + left + " جرعات اليوم." else "\n🎉 كملت جرعات اليوم!")
+        }
+        if (has(n, "ادويتي", "الادويه اليوم", "جرعات اليوم", "جرعاتي", "واش من دواء", "ادويه اليوم")) {
+            if (doses.isEmpty()) return "💊 ما كاينش جرعات اليوم."
+            return "💊 جرعات اليوم:\n" + doses.joinToString("\n") {
+                (if (it.taken) "✅ " else "⬜ ") + com.dani.assistant.core.meds.fmtMinute(it.minute) + " — " + it.med.name + (if (it.med.dose.isNotBlank()) " (" + it.med.dose + ")" else "")
+            }
+        }
+        return null
     }
 
     // ---------------- recurring ----------------

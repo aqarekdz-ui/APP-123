@@ -82,6 +82,9 @@ object WeeklyReview {
             })
         }
 
+        val (mg, me) = com.dani.assistant.core.meds.MedStore.adherence(ctx)
+        if (me > 0) sb.append("\n\n💊 الأدوية: أخذت ").append(mg).append(" من ").append(me).append(" جرعة (").append(mg * 100 / me).append("%)")
+
         val (fn, fm) = com.dani.assistant.core.focus.FocusLog.stats(ctx, 6)
         if (fn > 0) sb.append("\n\n🍅 التركيز: ").append(fn).append(" جلسات (").append(fm / 60).append("س ").append(fm % 60).append("د)")
 

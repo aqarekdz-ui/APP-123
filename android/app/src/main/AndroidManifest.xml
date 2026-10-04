@@ -86,6 +86,11 @@
             android:name=".core.digest.MorningDigestReceiver"
             android:exported="false" />
 
+        <!-- تذكير الأدوية -->
+        <receiver
+            android:name=".core.meds.MedReceiver"
+            android:exported="false" />
+
         <!-- مؤقت التركيز (Pomodoro) -->
         <receiver
             android:name=".core.focus.PomodoroReceiver"

@@ -17,6 +17,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == "android.intent.action.QUICKBOOT_POWERON") {
             val pendingResult = goAsync()
             try { MorningDigest.schedule(context) } catch (e: Exception) { }
+            try { com.dani.assistant.core.meds.MedAlarms.rescheduleAll(context) } catch (e: Exception) { }
 
             CoroutineScope(Dispatchers.IO).launch {
                 try {

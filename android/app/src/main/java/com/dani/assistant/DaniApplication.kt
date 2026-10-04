@@ -46,7 +46,10 @@ class DaniApplication : Application() {
 
         // مصاريف ثابتة شهرية (تسجيل تلقائي)
         try { com.dani.assistant.core.money.RecurringExpenses.schedule(this) } catch (e: Exception) { }
-        Thread { try { com.dani.assistant.core.money.RecurringExpenses.runAndNotify(this) } catch (e: Exception) { } }.start()
+        Thread {
+            try { com.dani.assistant.core.money.RecurringExpenses.runAndNotify(this) } catch (e: Exception) { }
+            try { com.dani.assistant.core.meds.MedAlarms.rescheduleAll(this) } catch (e: Exception) { }
+        }.start()
 
         // مراقب الإعلانات (WorkManager)
         try { com.dani.assistant.core.watch.AdWatcher.reschedule(this) } catch (e: Exception) { }
