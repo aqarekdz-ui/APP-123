@@ -86,18 +86,61 @@ object MoneyStore {
         writeRoot(ctx, root)
     }
 
-    fun exportJson(ctx: Context): JSONObject =
-        JSONObject().put("entries", readRoot(ctx).optJSONArray("entries") ?: JSONArray())
+    // ---------------- الميزانية الشهرية لكل فئة ----------------
+    fun budgets(ctx: Context): Map<String, Long> {
+        val o = readRoot(ctx).optJSONObject("budgets") ?: return emptyMap()
+        val m = LinkedHashMap<String, Long>()
+        for (k in o.keys()) { val v = o.optLong(k); if (v > 0) m[k] = v }
+        return m
+    }
+
+    @Synchronized
+    fun setBudget(ctx: Context, category: String, amount: Long) {
+        val root = readRoot(ctx)
+        val o = root.optJSONObject("budgets") ?: JSONObject()
+        if (amount > 0) o.put(category, amount) else o.remove(category)
+        root.put("budgets", o)
+        writeRoot(ctx, root)
+    }
+
+    private fun thisMonthStart(): Long {
+        val c = java.util.Calendar.getInstance()
+        c.set(java.util.Calendar.DAY_OF_MONTH, 1)
+        c.set(java.util.Calendar.HOUR_OF_DAY, 0); c.set(java.util.Calendar.MINUTE, 0)
+        c.set(java.util.Calendar.SECOND, 0); c.set(java.util.Calendar.MILLISECOND, 0)
+        return c.timeInMillis
+    }
+
+    fun spentThisMonth(ctx: Context, category: String): Long {
+        val start = thisMonthStart()
+        return entries(ctx).filter { it.type == "expense" && it.date >= start && it.category.ifBlank { "أخرى" } == category }
+            .sumOf { it.amount }
+    }
+
+    fun exportJson(ctx: Context): JSONObject {
+        val root = readRoot(ctx)
+        return JSONObject().put("entries", root.optJSONArray("entries") ?: JSONArray())
+            .put("budgets", root.optJSONObject("budgets") ?: JSONObject())
+    }
 
     /** دمج: يضيف فقط العمليات اللي id تاعها غير موجود. */
     @Synchronized
     fun importJson(ctx: Context, incoming: JSONObject): Int {
-        val inc = incoming.optJSONArray("entries") ?: return 0
         val root = readRoot(ctx)
+        var added = 0
+        // الميزانيات: دمج بلا مسح (الموجود عندنا يبقى)
+        val incB = incoming.optJSONObject("budgets")
+        if (incB != null) {
+            val curB = root.optJSONObject("budgets") ?: JSONObject()
+            for (k in incB.keys()) {
+                if (!curB.has(k) && incB.optLong(k) > 0) { curB.put(k, incB.optLong(k)); added++ }
+            }
+            root.put("budgets", curB)
+        }
+        val inc = incoming.optJSONArray("entries") ?: JSONArray()
         val cur = root.optJSONArray("entries") ?: JSONArray()
         val ids = HashSet<Long>()
         for (i in 0 until cur.length()) cur.optJSONObject(i)?.let { ids.add(it.optLong("id")) }
-        var added = 0
         for (i in 0 until inc.length()) {
             val o = inc.optJSONObject(i) ?: continue
             if (ids.add(o.optLong("id"))) { cur.put(o); added++ }

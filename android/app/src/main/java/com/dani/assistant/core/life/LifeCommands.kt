@@ -4,6 +4,7 @@ import android.content.Context
 import com.dani.assistant.DaniApplication
 import com.dani.assistant.core.habits.Habit
 import com.dani.assistant.core.habits.HabitStore
+import com.dani.assistant.core.money.BudgetAlerts
 import com.dani.assistant.core.money.MoneyEntry
 import com.dani.assistant.core.money.MoneyStore
 import kotlinx.coroutines.flow.first
@@ -159,6 +160,10 @@ object LifeCommands {
         if (has(n, "الغي اخر", "امسح اخر", "احذف اخر", "تراجع عن اخر", "الغي التسجيل", "الغي العمليه")) return undoLast(ctx)
 
         val amt = findAmount(n)
+
+        // 1b) الميزانية
+        if (has(n, "ميزانيه", "ميزانيات", "ميزانيتي", "ميزانيتى")) budgetCommand(ctx, n, amt)?.let { return it }
+
         val qWord = Regex("(^|\\s)(كم|قداش|شحال)(\\s|$)").containsMatchIn(n) || n.contains('؟') || n.contains('?')
 
         // 2) أسئلة
@@ -213,8 +218,10 @@ object LifeCommands {
                 val e = MoneyEntry(id = System.currentTimeMillis(), type = "expense", amount = amt.value, category = expenseCategory(n), note = noteOf(s, amt))
                 MoneyStore.save(ctx, e)
                 lastPrefs(ctx).edit().putLong("last_entry", e.id).apply()
+                val warn = BudgetAlerts.check(ctx, e.category)
                 return "💸 سجلت مصروف " + MoneyStore.fmt(e.amount) + " — " + e.category + (if (e.note.isNotBlank()) " (" + e.note + ")" else "") +
                     "\n📊 مصروف هذا الشهر: " + MoneyStore.fmt(monthExpense(ctx)) +
+                    (if (warn != null) "\n\n" + warn else "") +
                     "\n↩️ قول \"الغي آخر عملية\" للتراجع."
             }
         }
@@ -222,6 +229,48 @@ object LifeCommands {
         // 6) إنجاز عادة
         habitDone(ctx, n)?.let { return it }
         return null
+    }
+
+    // ---------------- budget ----------------
+    private fun budgetCategory(n: String): String? {
+        for (c in MoneyStore.expenseCategories) if (n.contains(norm(c))) return c
+        val g = expenseCategory(n)
+        return if (g != "أخرى") g else null
+    }
+
+    private fun budgetLine(ctx: Context, cat: String, budget: Long): String {
+        val spent = MoneyStore.spentThisMonth(ctx, cat)
+        val pct = (spent * 100 / budget).toInt()
+        val left = budget - spent
+        val icon = if (pct >= 100) "🚨" else if (pct >= 80) "⚠️" else "✅"
+        return icon + " " + cat + ": " + MoneyStore.fmt(spent) + " / " + MoneyStore.fmt(budget) + " (" + pct + "%) — " +
+            (if (left >= 0) "بقالك " + MoneyStore.fmt(left) else "زايد " + MoneyStore.fmt(-left))
+    }
+
+    private fun budgetCommand(ctx: Context, n: String, amt: Amt?): String? {
+        val cat = budgetCategory(n)
+        // حذف
+        if (has(n, "الغي ميزانيه", "امسح ميزانيه", "احذف ميزانيه")) {
+            if (cat == null) return "أي فئة؟ (أكل، مواصلات، فواتير، صحة، ترفيه، شغل، بيت، أخرى)"
+            MoneyStore.setBudget(ctx, cat, 0)
+            return "🗑 لغيت ميزانية " + cat
+        }
+        // تحديد
+        if (amt != null) {
+            if (cat == null) return "أي فئة؟ مثال: \"ميزانية الأكل 20000\" (أكل، مواصلات، فواتير، صحة، ترفيه، شغل، بيت، أخرى)"
+            MoneyStore.setBudget(ctx, cat, amt.value)
+            val spent = MoneyStore.spentThisMonth(ctx, cat)
+            return "🎯 ميزانية " + cat + " = " + MoneyStore.fmt(amt.value) + " في الشهر\n" + budgetLine(ctx, cat, amt.value) +
+                "\n(نخبرك عند 80% وعند التجاوز)"
+        }
+        // استعلام
+        val all = MoneyStore.budgets(ctx)
+        if (cat != null) {
+            val b = all[cat] ?: return "ما حطيتش ميزانية لـ" + cat + ". قول مثلا: \"ميزانية " + cat + " 20000\""
+            return budgetLine(ctx, cat, b)
+        }
+        if (all.isEmpty()) return "ما عندكش ميزانيات. قول مثلا: \"ميزانية الأكل 20000\" ولا من شاشة المال ← الميزانية."
+        return "🎯 ميزانيات هذا الشهر:\n" + all.entries.joinToString("\n") { budgetLine(ctx, it.key, it.value) }
     }
 
     // ---------------- actions ----------------

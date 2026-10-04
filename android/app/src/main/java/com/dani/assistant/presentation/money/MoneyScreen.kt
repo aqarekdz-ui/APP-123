@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -38,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dani.assistant.DaniApplication
+import com.dani.assistant.core.money.BudgetAlerts
 import com.dani.assistant.core.money.MoneyEntry
 import com.dani.assistant.core.money.MoneyStore
 import com.dani.assistant.domain.model.PriorityLevel
@@ -123,6 +126,7 @@ fun MoneyScreen(onBack: () -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = tab == 0, onClick = { tab = 0 }, label = { Text("المصاريف والمداخيل") })
             FilterChip(selected = tab == 1, onClick = { tab = 1 }, label = { Text("الديون") })
+            FilterChip(selected = tab == 2, onClick = { tab = 2 }, label = { Text("🎯 الميزانية") })
         }
 
         if (tab == 0) {
@@ -164,7 +168,7 @@ fun MoneyScreen(onBack: () -> Unit) {
                     }
                 }
             }
-        } else {
+        } else if (tab == 1) {
             val debts = entries.filter { it.type == "debt_to_me" || it.type == "debt_i_owe" }
             val open = debts.filter { !it.settled }
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -202,12 +206,18 @@ fun MoneyScreen(onBack: () -> Unit) {
                     }
                 }
             }
+        } else {
+            BudgetTab(entries)
         }
     }
 
     editTx?.let { et ->
         TxDialog(et, onDismiss = { editTx = null }, onSave = { e ->
             MoneyStore.save(context, if (e.id == 0L) e.copy(id = System.currentTimeMillis()) else e)
+            if (e.type == "expense") {
+                val warn = BudgetAlerts.check(context, e.category)
+                if (warn != null) Toast.makeText(context, warn, Toast.LENGTH_LONG).show()
+            }
             refresh()
             editTx = null
         })
@@ -235,6 +245,85 @@ fun MoneyScreen(onBack: () -> Unit) {
                 }) { Text("حذف") }
             },
             dismissButton = { TextButton(onClick = { delEntry = null }) { Text("إلغاء") } }
+        )
+    }
+}
+
+@Composable
+private fun ColumnScope.BudgetTab(entries: List<MoneyEntry>) {
+    val context = LocalContext.current
+    var budgets by remember { mutableStateOf(MoneyStore.budgets(context)) }
+    var editCat by remember { mutableStateOf<String?>(null) }
+    val (start, end) = monthRange(0)
+    val spentBy = entries.filter { it.type == "expense" && it.date in start until end }
+        .groupBy { it.category.ifBlank { "أخرى" } }.mapValues { e -> e.value.sumOf { it.amount } }
+    val totalBudget = budgets.values.sum()
+    val totalSpent = budgets.keys.sumOf { spentBy[it] ?: 0L }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("🎯 ميزانية " + monthTitle(0), fontWeight = FontWeight.Bold)
+            if (totalBudget > 0) Text("المجموع: " + MoneyStore.fmt(totalSpent) + " / " + MoneyStore.fmt(totalBudget), fontSize = 13.sp)
+            else Text("اضغط على فئة باش تحدد مبلغها الشهري.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+        }
+    }
+    LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        items(MoneyStore.expenseCategories, key = { it }) { cat ->
+            val b = budgets[cat] ?: 0L
+            val spent = spentBy[cat] ?: 0L
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(cat, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = { editCat = cat }) { Text(if (b > 0) "✏️ " + MoneyStore.fmt(b) else "➕ حدد ميزانية") }
+                    }
+                    if (b > 0) {
+                        val frac = (spent.toFloat() / b.toFloat()).coerceIn(0f, 1f)
+                        val over = spent > b
+                        LinearProgressIndicator(
+                            progress = { frac }, modifier = Modifier.fillMaxWidth(),
+                            color = if (over || spent * 100 / b >= 80) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            MoneyStore.fmt(spent) + " (" + (spent * 100 / b) + "%) — " +
+                                (if (over) "زايد " + MoneyStore.fmt(spent - b) else "بقالك " + MoneyStore.fmt(b - spent)),
+                            fontSize = 12.sp, color = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
+                        )
+                    } else if (spent > 0) {
+                        Text("صرفت " + MoneyStore.fmt(spent) + " (بلا ميزانية)", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                    }
+                }
+            }
+        }
+    }
+    editCat?.let { cat ->
+        var txt by remember(cat) { mutableStateOf(budgets[cat]?.toString() ?: "") }
+        AlertDialog(
+            onDismissRequest = { editCat = null },
+            title = { Text("ميزانية " + cat) },
+            text = {
+                OutlinedTextField(
+                    value = txt, onValueChange = { txt = it.filter { c -> c.isDigit() } }, label = { Text("المبلغ الشهري (دج)") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    MoneyStore.setBudget(context, cat, digits(txt))
+                    budgets = MoneyStore.budgets(context)
+                    editCat = null
+                }) { Text("حفظ") }
+            },
+            dismissButton = {
+                Row {
+                    if ((budgets[cat] ?: 0L) > 0) TextButton(onClick = {
+                        MoneyStore.setBudget(context, cat, 0)
+                        budgets = MoneyStore.budgets(context)
+                        editCat = null
+                    }) { Text("حذف") }
+                    TextButton(onClick = { editCat = null }) { Text("إلغاء") }
+                }
+            }
         )
     }
 }
