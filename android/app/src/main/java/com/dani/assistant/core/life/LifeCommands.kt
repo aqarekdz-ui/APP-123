@@ -162,6 +162,9 @@ object LifeCommands {
         // 1) إلغاء آخر عملية
         if (has(n, "الغي اخر", "امسح اخر", "احذف اخر", "تراجع عن اخر", "الغي التسجيل", "الغي العمليه")) return undoLast(ctx)
 
+        // 1e) المناسبات وأعياد الميلاد
+        com.dani.assistant.core.events.EventCommands.handle(ctx, s, n)?.let { return it }
+
         val amt = findAmount(n)
 
         // 1b) الميزانية

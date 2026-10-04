@@ -18,6 +18,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
             val pendingResult = goAsync()
             try { MorningDigest.schedule(context) } catch (e: Exception) { }
             try { com.dani.assistant.core.meds.MedAlarms.rescheduleAll(context) } catch (e: Exception) { }
+            try { com.dani.assistant.core.events.EventAlarms.rescheduleAll(context) } catch (e: Exception) { }
 
             CoroutineScope(Dispatchers.IO).launch {
                 try {

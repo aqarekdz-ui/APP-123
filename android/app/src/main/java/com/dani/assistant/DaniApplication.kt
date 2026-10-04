@@ -49,6 +49,7 @@ class DaniApplication : Application() {
         Thread {
             try { com.dani.assistant.core.money.RecurringExpenses.runAndNotify(this) } catch (e: Exception) { }
             try { com.dani.assistant.core.meds.MedAlarms.rescheduleAll(this) } catch (e: Exception) { }
+            try { com.dani.assistant.core.events.EventAlarms.rescheduleAll(this) } catch (e: Exception) { }
         }.start()
 
         // مراقب الإعلانات (WorkManager)

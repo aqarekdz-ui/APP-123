@@ -91,6 +91,11 @@
             android:name=".core.meds.MedReceiver"
             android:exported="false" />
 
+        <!-- مناسبات وأعياد ميلاد -->
+        <receiver
+            android:name=".core.events.EventReceiver"
+            android:exported="false" />
+
         <!-- مؤقت التركيز (Pomodoro) -->
         <receiver
             android:name=".core.focus.PomodoroReceiver"

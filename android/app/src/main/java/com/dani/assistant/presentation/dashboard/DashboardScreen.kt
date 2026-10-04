@@ -43,7 +43,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, onOpenRealEstate: () -> Unit = {}, onOpenHabits: () -> Unit = {}, onOpenMoney: () -> Unit = {}, onOpenGoals: () -> Unit = {}, onOpenFocus: () -> Unit = {}, onOpenMeds: () -> Unit = {}) {
+fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, onOpenRealEstate: () -> Unit = {}, onOpenHabits: () -> Unit = {}, onOpenMoney: () -> Unit = {}, onOpenGoals: () -> Unit = {}, onOpenFocus: () -> Unit = {}, onOpenMeds: () -> Unit = {}, onOpenEvents: () -> Unit = {}) {
     val tasks by viewModel.tasks.collectAsState()
     val pending = tasks.filter { !it.isCompleted }
     val done = tasks.count { it.isCompleted }
@@ -53,6 +53,8 @@ fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, 
     val areaCounts = AreaStore.areas.map { a -> a to pending.count { areaMap[it.id] == a.key } }.filter { it.second > 0 }
     val habitList = remember { HabitStore.list(dashCtx) }
     val todayKey = HabitStore.dayKey(0)
+    val evSoon = remember { com.dani.assistant.core.events.EventStore.upcoming(dashCtx, 7).size }
+    val eventsLabel = if (evSoon > 0) " (" + evSoon + ")" else ""
     val habitsLabel = if (habitList.isEmpty()) "" else " (" + habitList.count { it.days.contains(todayKey) } + "/" + habitList.size + ")"
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -67,6 +69,7 @@ fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, 
             OutlinedButton(onClick = onOpenGoals) { Text("🎯 الأهداف") }
             OutlinedButton(onClick = onOpenFocus) { Text("⏱ تركيز") }
             OutlinedButton(onClick = onOpenMeds) { Text("💊 الأدوية") }
+            OutlinedButton(onClick = onOpenEvents) { Text("🎂 المناسبات" + eventsLabel) }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatCard("متبقية", pending.size.toString(), Modifier.weight(1f))
