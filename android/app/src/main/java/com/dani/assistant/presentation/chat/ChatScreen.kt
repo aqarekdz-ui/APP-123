@@ -59,6 +59,7 @@ import com.dani.assistant.core.alarm.ScheduleResult
 import com.dani.assistant.domain.model.Recurrence
 import com.dani.assistant.domain.model.ReminderType
 import com.dani.assistant.core.knowledge.KnowledgeBase
+import com.dani.assistant.core.life.LifeCommands
 import com.dani.assistant.core.memory.MemoryStore
 import com.dani.assistant.core.memory.SecretStore
 import com.dani.assistant.domain.model.Task
@@ -363,6 +364,14 @@ fun ChatScreen() {
 
     fun doSend(inputText: String, addUserBubble: Boolean) {
         if (inputText.startsWith("تذكر") || inputText.lowercase().startsWith("remember")) { val fact = inputText.substringAfter(" ", "").trim(); if (fact.isNotEmpty()) { if (SecretStore.looksSensitive(fact)) SecretStore.add(context, fact) else MemoryStore.add(context, fact) } }; val result = analyzeMessage(inputText); currentMood = result.first; suggestedTask = result.second; if (addUserBubble) messages = messages + Message(inputText, true, mood = result.first); sending = true; sendJob = scope.launch { try {
+                val lifeReply = try { LifeCommands.handle(context, inputText) }
+                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (e: Exception) { null }
+                if (lifeReply != null) {
+                    suggestedTask = null
+                    messages = messages + Message(lifeReply, false, mood = "حياتي")
+                    return@launch
+                }
                 if (isAdSiteRequest(inputText)) {
                     val pIdx = messages.size
                     messages = messages + Message("🔎 نفتح Ouedkniss ونقرا الإعلانات واحد واحد... (تدوم دقيقة ولا زيادة)", false, mood = "إعلانات")
