@@ -12,6 +12,7 @@ import com.dani.assistant.presentation.chat.ChatScreen
 import com.dani.assistant.presentation.memory.MemoryScreen
 import com.dani.assistant.presentation.dashboard.DashboardScreen
 import com.dani.assistant.presentation.habits.HabitsScreen
+import com.dani.assistant.presentation.money.MoneyScreen
 import com.dani.assistant.presentation.realestate.RealEstateScreen
 import com.dani.assistant.presentation.settings.SettingsScreen
 import com.dani.assistant.presentation.tasks.TasksScreen
@@ -35,7 +36,7 @@ fun DaniNavHost(
                     alarmScheduler = app.alarmScheduler
                 )
             )
-            DashboardScreen(viewModel = viewModel, onOpenSettings = { navController.navigate("settings") }, onOpenRealEstate = { navController.navigate("realestate") }, onOpenHabits = { navController.navigate("habits") })
+            DashboardScreen(viewModel = viewModel, onOpenSettings = { navController.navigate("settings") }, onOpenRealEstate = { navController.navigate("realestate") }, onOpenHabits = { navController.navigate("habits") }, onOpenMoney = { navController.navigate("money") })
         }
         composable(Screen.Tasks.route) {
             val app = DaniApplication.instance
@@ -62,6 +63,9 @@ fun DaniNavHost(
         }
         composable(Screen.Dani.route) {
             ChatScreen()
+        }
+        composable("money") {
+            MoneyScreen(onBack = { navController.popBackStack() })
         }
         composable("habits") {
             HabitsScreen(onBack = { navController.popBackStack() })

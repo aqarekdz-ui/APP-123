@@ -8,6 +8,7 @@ import com.dani.assistant.core.memory.MemoryStore
 import com.dani.assistant.core.memory.SecretStore
 import com.dani.assistant.core.realestate.RealEstateStore
 import com.dani.assistant.core.habits.HabitStore
+import com.dani.assistant.core.money.MoneyStore
 import com.dani.assistant.core.areas.AreaStore
 import com.dani.assistant.domain.model.PriorityLevel
 import com.dani.assistant.domain.model.Recurrence
@@ -34,7 +35,8 @@ data class ImportResult(
     val secretsSkipped: Boolean,
     val chat: Int = 0,
     val realestate: Int = 0,
-    val habits: Int = 0
+    val habits: Int = 0,
+    val money: Int = 0
 )
 
 /** نسخة احتياطية موحّدة: مهام + معلومات + معرفة + رسائل الشات + أسرار (مشفّرة بكلمة سر النسخة، اختيارية). */
@@ -151,6 +153,7 @@ object BackupManager {
             .put("chat", readChat(ctx))
             .put("realestate", RealEstateStore.exportJson(ctx))
             .put("habits", HabitStore.exportJson(ctx))
+            .put("money", MoneyStore.exportJson(ctx))
         if (pass.isNotEmpty()) {
             val secrets = SecretStore.getAll(ctx)
             if (secrets.isNotEmpty()) {
@@ -224,6 +227,7 @@ object BackupManager {
         // العقار (عملاء + عقارات)
         val reAdded = root.optJSONObject("realestate")?.let { RealEstateStore.importJson(ctx, it) } ?: 0
         val habitsAdded = root.optJSONObject("habits")?.let { HabitStore.importJson(ctx, it) } ?: 0
+        val moneyAdded = root.optJSONObject("money")?.let { MoneyStore.importJson(ctx, it) } ?: 0
 
         // الأسرار
         var secretsAdded = 0
@@ -239,6 +243,6 @@ object BackupManager {
                 secretsAdded = SecretStore.getAll(ctx).size - before
             }
         }
-        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped, chatAdded, reAdded, habitsAdded)
+        return ImportResult(tasksAdded, factsAdded, knowledgeAdded, secretsAdded, secretsSkipped, chatAdded, reAdded, habitsAdded, moneyAdded)
     }
 }
