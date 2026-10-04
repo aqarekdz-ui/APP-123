@@ -29,9 +29,9 @@ object EventCommands {
         "هذا", "هاد", "ايام", "بتاريخ", "تاريخ", "من", "كل", "سنه", "عام", "سنويا"
     )
 
-    private data class PDate(val day: Int, val month: Int, val year: Int, val start: Int, val end: Int)
+    internal data class PDate(val day: Int, val month: Int, val year: Int, val start: Int, val end: Int)
 
-    private fun norm(s: String): String = s.lowercase().map {
+    internal fun norm(s: String): String = s.lowercase().map {
         when (it) {
             'أ', 'إ', 'آ' -> 'ا'
             'ى' -> 'ي'
@@ -44,7 +44,7 @@ object EventCommands {
 
     private fun validDate(d: Int, m: Int): Boolean = m in 1..12 && d in 1..maxDays[m - 1]
 
-    private fun findDate(n: String): PDate? {
+    internal fun findDate(n: String): PDate? {
         numDate.find(n)?.let { m ->
             val d = m.groupValues[1].toInt()
             val mo = m.groupValues[2].toInt()

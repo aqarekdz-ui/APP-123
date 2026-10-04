@@ -65,6 +65,8 @@ android {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    testImplementation("junit:junit:4.13.2")
+
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     

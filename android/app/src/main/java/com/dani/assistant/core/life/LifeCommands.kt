@@ -28,7 +28,7 @@ object LifeCommands {
     private val diacritics = Regex("[\u064B-\u0652\u0640]")
     private val tokenRe = Regex("\\S+")
 
-    private fun clean(raw: String): String {
+    internal fun clean(raw: String): String {
         val sb = StringBuilder()
         for (ch in diacritics.replace(raw, "")) {
             sb.append(
@@ -42,7 +42,7 @@ object LifeCommands {
         return sb.toString().trim()
     }
 
-    private fun norm(s: String): String = s.lowercase().map {
+    internal fun norm(s: String): String = s.lowercase().map {
         when (it) {
             'أ', 'إ', 'آ' -> 'ا'
             'ى' -> 'ي'
@@ -62,9 +62,9 @@ object LifeCommands {
     private val amountRe = Regex("(\\d{1,3}(?:[ ,.]\\d{3})+|\\d+)(?:\\s*(الاف|الف|k)(?![\\p{L}]))?")
     private val sepRe = Regex("[ ,.]")
 
-    private data class Amt(val value: Long, val start: Int, val end: Int)
+    internal data class Amt(val value: Long, val start: Int, val end: Int)
 
-    private fun findAmount(n: String): Amt? {
+    internal fun findAmount(n: String): Amt? {
         for (m in amountRe.findAll(n)) {
             val rawNum = m.groupValues[1].replace(sepRe, "")
             if (rawNum.length >= 9) continue // رقم هاتف

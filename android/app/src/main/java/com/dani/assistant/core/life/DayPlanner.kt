@@ -22,8 +22,9 @@ object DayPlanner {
 
     private data class Slot(val task: Task, val start: Long, val end: Long, val fixed: Boolean)
 
-    private fun dayStart(offset: Int): Long {
+    private fun dayStart(offset: Int, now: Long): Long {
         val c = Calendar.getInstance()
+        c.timeInMillis = now
         c.add(Calendar.DAY_OF_YEAR, offset)
         c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0)
         return c.timeInMillis
@@ -46,9 +47,14 @@ object DayPlanner {
 
     suspend fun plan(offset: Int): String {
         val all = DaniApplication.instance.taskRepository.getAllTasks().first()
-            .filter { !it.isCompleted && it.status.name != "CANCELLED" }
-        val a = dayStart(offset)
-        val b = dayStart(offset + 1)
+        return render(all, offset, System.currentTimeMillis())
+    }
+
+    /** منطق صافي (بلا Android) باش يتجرّب بـ JUnit. */
+    internal fun render(allTasks: List<Task>, offset: Int, nowMs: Long): String {
+        val all = allTasks.filter { !it.isCompleted && it.status.name != "CANCELLED" }
+        val a = dayStart(offset, nowMs)
+        val b = dayStart(offset + 1, nowMs)
         val fmt = SimpleDateFormat("HH:mm", Locale.US)
         val title = if (offset == 0) "اليوم" else "غدوة"
 
@@ -69,7 +75,7 @@ object DayPlanner {
         var cursor = winStart
         if (offset == 0) {
             val q = 15 * MIN
-            val now = (System.currentTimeMillis() + q - 1) / q * q
+            val now = (nowMs + q - 1) / q * q
             if (now > cursor) cursor = now
         }
 

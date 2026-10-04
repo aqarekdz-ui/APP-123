@@ -77,7 +77,7 @@ object RecurringExpenses {
         }
         if (!done) {
             val fresh = if (item.id == 0L) item.copy(id = System.currentTimeMillis()) else item
-            val last = if (now.get(Calendar.DAY_OF_MONTH) >= fresh.day) cur else cur - 1
+            val last = RecurrenceMath.initialLast(cur, now.get(Calendar.DAY_OF_MONTH), fresh.day)
             out.put(toJson(fresh.copy(last = last)))
         }
         writeArr(ctx, out)
@@ -110,9 +110,7 @@ object RecurringExpenses {
             val it = fromJson(o)
             if (!it.active || it.amount <= 0) continue
             var last = it.last
-            var idx = maxOf(last + 1, cur - 5)
-            while (idx <= cur) {
-                if (idx == cur && today < it.day) break
+            for (idx in RecurrenceMath.dueMonths(last, cur, today, it.day)) {
                 val c = Calendar.getInstance()
                 c.clear()
                 c.set(idx / 12, idx % 12, it.day, 9, 0, 0)
@@ -121,7 +119,6 @@ object RecurringExpenses {
                 MoneyStore.save(ctx, e)
                 created.add(e)
                 last = idx
-                idx++
             }
             if (last != it.last) { o.put("last", last); changed = true }
         }
