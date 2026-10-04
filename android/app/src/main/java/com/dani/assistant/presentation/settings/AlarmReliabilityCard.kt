@@ -74,6 +74,15 @@ fun AlarmReliabilityCard() {
             open(ctx, Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + pkg)),
                 Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         }
+        var testMsg by remember { mutableStateOf(com.dani.assistant.core.alarm.AlarmTest.lastResult(ctx)) }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                val ok = com.dani.assistant.core.alarm.AlarmTest.schedule(ctx)
+                testMsg = if (ok) "⏳ برمجت منبه بعد دقيقة. سكّر الشاشة وستنى الإشعار." else "❌ النظام رفض المنبه الدقيق، فعّل الإذن اللي فوق."
+            }) { Text("🔔 جرّب منبه (دقيقة)") }
+            TextButton(onClick = { testMsg = com.dani.assistant.core.alarm.AlarmTest.lastResult(ctx) }) { Text("حدّث") }
+        }
+        Text(testMsg, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
         val hint = AlarmReliability.vendorHint(Build.MANUFACTURER ?: "")
         if (hint.isNotBlank()) {
             Text(hint, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)

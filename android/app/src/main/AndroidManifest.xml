@@ -129,6 +129,10 @@
                 android:resource="@xml/dani_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".core.alarm.AlarmTestReceiver"
+            android:exported="false" />
+
         <!-- ودجت اليوم: عادات + جرعات -->
         <receiver
             android:name=".widget.DailyWidgetProvider"
