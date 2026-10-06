@@ -80,4 +80,44 @@ class HabitStatsTest {
         val o = HabitStats.overall(listOf(HabitStats.Rate(5, 10), HabitStats.Rate(1, 10)))
         assertEquals(6, o.done); assertEquals(20, o.window); assertEquals(30, o.percent)
     }
+
+    // ---- أيام مخصّصة: الثلاثاء(2) والخميس(4). اليوم = الثلاثاء 2026-10-06
+    private val tueThu = setOf(2, 4)
+
+    @Test fun scheduled_basic() {
+        assertTrue(HabitStats.isScheduled(emptySet(), today))
+        assertTrue(HabitStats.isScheduled(tueThu, today))
+        assertTrue(!HabitStats.isScheduled(tueThu, today.minusDays(1))) // الاثنين
+    }
+
+    @Test fun streak_skipsUnscheduledDays() {
+        val d = setOf("2026-09-29", "2026-10-01", "2026-10-06")
+        assertEquals(3, HabitStats.currentStreak(d, today, tueThu))
+        assertEquals(1, HabitStats.currentStreak(d, today)) // بدون برنامج: اليوم فقط
+    }
+
+    @Test fun streak_todayNotDoneYetStillCounts_butMissedBreaks() {
+        assertEquals(2, HabitStats.currentStreak(setOf("2026-09-29", "2026-10-01"), today, tueThu))
+        assertEquals(0, HabitStats.currentStreak(setOf("2026-09-29"), today, tueThu)) // فاتت الخميس 1 أكتوبر
+    }
+
+    @Test fun bestStreak_withSchedule() {
+        val d = setOf("2026-09-22", "2026-09-29", "2026-10-01", "2026-10-06")
+        // 22 → 29 فاتت الخميس 24 => تنقطع، ثم 29,1,6 = 3
+        assertEquals(3, HabitStats.bestStreak(d, tueThu))
+        assertEquals(1, HabitStats.bestStreak(d))
+    }
+
+    @Test fun rate_countsOnlyScheduledDays() {
+        val created = LocalDate.of(2026, 1, 1)
+        val d = setOf("2026-10-06", "2026-10-01", "2026-10-02") // 2 أكتوبر جمعة (غير مبرمج) ما يتحسبش
+        val r = HabitStats.rate(d, created, today, 7, tueThu) // 30 سبت..6 أكت: الخميس 1 والثلاثاء 6
+        assertEquals(2, r.window); assertEquals(2, r.done); assertEquals(100, r.percent)
+    }
+
+    @Test fun monthGrid_marksUnscheduled() {
+        val g = HabitStats.monthGrid(emptySet(), YearMonth.of(2026, 10), today, tueThu)
+        assertTrue(g.first { it.day == 6 }.scheduled)   // الثلاثاء
+        assertTrue(!g.first { it.day == 5 }.scheduled)  // الاثنين
+    }
 }

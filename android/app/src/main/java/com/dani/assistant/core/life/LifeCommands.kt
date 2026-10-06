@@ -489,9 +489,11 @@ object LifeCommands {
         val habits = HabitStore.list(ctx)
         if (habits.isEmpty()) return "ما عندكش عادات مسجلة. زيد من الرئيسية ← ✅ العادات."
         val today = HabitStore.dayKey(0)
-        val done = habits.count { it.days.contains(today) }
-        val sb = StringBuilder("✅ عاداتك اليوم (").append(done).append("/").append(habits.size).append("):")
-        habits.forEach { h ->
+        val due = habits.filter { HabitStore.dueToday(it) }
+        if (due.isEmpty()) return "😌 ما عندكش عادات مبرمجة اليوم."
+        val done = due.count { it.days.contains(today) }
+        val sb = StringBuilder("✅ عاداتك اليوم (").append(done).append("/").append(due.size).append("):")
+        due.forEach { h ->
             val st = HabitStore.streak(h)
             sb.append("\n").append(if (h.days.contains(today)) "✅ " else "⬜ ").append(h.emoji).append(" ").append(h.name)
             if (st > 0) sb.append(" 🔥").append(st)

@@ -75,7 +75,7 @@ class DailyWidgetProvider : AppWidgetProvider() {
             val ids = mgr.getAppWidgetIds(ComponentName(ctx, DailyWidgetProvider::class.java))
             if (ids.isEmpty()) return
 
-            val habits = DailyWidgetLogic.pickHabits(HabitStore.list(ctx).map {
+            val habits = DailyWidgetLogic.pickHabits(HabitStore.list(ctx).filter { HabitStore.dueToday(it) }.map {
                 WHabit(it.id, it.emoji, it.name, it.days.contains(HabitStore.dayKey(0)), HabitStore.streak(it))
             })
             val doses = DailyWidgetLogic.pickDoses(MedStore.todayDoses(ctx).map { WDose(it.med.id, it.minute, it.med.name, it.taken) })

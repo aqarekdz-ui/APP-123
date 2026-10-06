@@ -92,8 +92,8 @@ object WeeklyReview {
         if (habits.isNotEmpty()) {
             sb.append("\n\n🔥 العادات (من 7):")
             habits.forEach { h ->
-                val cnt = (-6..0).count { h.days.contains(HabitStore.dayKey(it)) }
-                sb.append("\n  ").append(h.emoji).append(" ").append(h.name).append(": ").append(cnt)
+                val r = com.dani.assistant.core.habits.HabitStats.rate(h.days, java.time.LocalDate.now().minusDays(6), java.time.LocalDate.now(), 7, h.weekdays)
+                sb.append("\n  ").append(h.emoji).append(" ").append(h.name).append(": ").append(r.done).append("/").append(r.window)
             }
         }
         try {

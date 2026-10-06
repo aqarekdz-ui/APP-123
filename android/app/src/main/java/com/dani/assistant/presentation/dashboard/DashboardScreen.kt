@@ -57,7 +57,7 @@ fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, 
     val todayKey = HabitStore.dayKey(0)
     val evSoon = remember { com.dani.assistant.core.events.EventStore.upcoming(dashCtx, 7).size }
     val eventsLabel = if (evSoon > 0) " (" + evSoon + ")" else ""
-    val habitsLabel = if (habitList.isEmpty()) "" else " (" + habitList.count { it.days.contains(todayKey) } + "/" + habitList.size + ")"
+    val habitsLabel = if (habitList.isEmpty()) "" else " (" + habitList.filter { HabitStore.dueToday(it) }.count { it.days.contains(todayKey) } + "/" + habitList.count { HabitStore.dueToday(it) } + ")"
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {

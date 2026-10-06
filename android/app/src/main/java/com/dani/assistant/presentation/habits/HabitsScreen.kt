@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dani.assistant.core.habits.Habit
 import com.dani.assistant.core.habits.HabitReports
+import com.dani.assistant.core.habits.HabitStats
 import com.dani.assistant.core.habits.HabitStore
 import androidx.core.content.FileProvider
 import java.io.File
@@ -49,6 +50,10 @@ import java.time.LocalDate
 import java.util.Calendar
 
 private val weekdayLetters = listOf("ح", "ن", "ث", "ر", "خ", "ج", "س") // الأحد..السبت
+// الأحد أولاً، القيم = DayOfWeek.value (الاثنين=1..الأحد=7)
+private val weekdayChoices = listOf("ح" to 7, "ن" to 1, "ث" to 2, "ر" to 3, "خ" to 4, "ج" to 5, "س" to 6)
+
+private fun weekdaysText(w: Set<Int>): String = weekdayChoices.filter { w.contains(it.second) }.joinToString(" ") { it.first }
 
 private fun dayLetter(offset: Int): String {
     val c = Calendar.getInstance()
@@ -70,8 +75,9 @@ fun HabitsScreen(onBack: () -> Unit, onOpenStats: () -> Unit = {}) {
             Text("✅ العادات", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             TextButton(onClick = onBack) { Text("رجوع") }
         }
-        val doneToday = habits.count { it.days.contains(today) }
-        Text("اليوم: " + doneToday + " / " + habits.size, color = MaterialTheme.colorScheme.outline)
+        val dueList = habits.filter { HabitStore.dueToday(it) }
+        val doneToday = dueList.count { it.days.contains(today) }
+        Text("اليوم: " + doneToday + " / " + dueList.size, color = MaterialTheme.colorScheme.outline)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { showAdd = true }) { Text("➕ عادة جديدة") }
             if (habits.isNotEmpty()) Button(onClick = onOpenStats) { Text("📊 إحصائيات") }
@@ -99,7 +105,7 @@ fun HabitsScreen(onBack: () -> Unit, onOpenStats: () -> Unit = {}) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(h.emoji + " " + h.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                            Text(h.emoji + " " + h.name + (if (h.weekdays.isNotEmpty()) "  📆 " + weekdaysText(h.weekdays) else ""), fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
                             val s = HabitStore.streak(h)
                             if (s > 0) Text("🔥 " + s, fontSize = 13.sp)
                             Checkbox(checked = h.days.contains(today), onCheckedChange = {
@@ -139,6 +145,7 @@ fun HabitsScreen(onBack: () -> Unit, onOpenStats: () -> Unit = {}) {
     if (showAdd) {
         var name by remember { mutableStateOf("") }
         var emoji by remember { mutableStateOf(HabitStore.emojis.first()) }
+        var wd by remember { mutableStateOf(setOf<Int>()) }
         AlertDialog(
             onDismissRequest = { showAdd = false },
             title = { Text("عادة جديدة") },
@@ -150,11 +157,17 @@ fun HabitsScreen(onBack: () -> Unit, onOpenStats: () -> Unit = {}) {
                             FilterChip(selected = emoji == e, onClick = { emoji = e }, label = { Text(e) })
                         }
                     }
+                    Text("📆 الأيام (فارغ = كل يوم)", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                    Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        weekdayChoices.forEach { (l, v) ->
+                            FilterChip(selected = wd.contains(v), onClick = { wd = if (wd.contains(v)) wd - v else wd + v }, label = { Text(l) })
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(enabled = name.isNotBlank(), onClick = {
-                    HabitStore.add(context, name, emoji)
+                    HabitStore.add(context, name, emoji, wd)
                     habits = HabitStore.list(context)
                     showAdd = false
                 }) { Text("حفظ") }

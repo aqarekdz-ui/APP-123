@@ -8,7 +8,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-data class Habit(val id: Long, val name: String, val emoji: String, val createdAt: Long, val days: Set<String>)
+/** weekdays: أيام الأسبوع المبرمجة (DayOfWeek.value: الاثنين=1..الأحد=7). فارغة = كل يوم. */
+data class Habit(val id: Long, val name: String, val emoji: String, val createdAt: Long, val days: Set<String>, val weekdays: Set<Int> = emptySet())
 
 /** عادات يومية (ملف محلي dani_habits.json): كل عادة فيها قائمة الأيام اللي تمت فيها. */
 object HabitStore {
@@ -25,12 +26,11 @@ object HabitStore {
         return fmt.format(c.time)
     }
 
-    fun streak(h: Habit): Int {
-        var offset = if (h.days.contains(dayKey(0))) 0 else -1
-        var n = 0
-        while (h.days.contains(dayKey(offset))) { n++; offset-- }
-        return n
-    }
+    fun streak(h: Habit): Int = HabitStats.currentStreak(h.days, java.time.LocalDate.now(), h.weekdays)
+
+    /** مبرمجة اليوم، أو منجزة اليوم (حتى لو خارج البرنامج). */
+    fun dueToday(h: Habit): Boolean =
+        HabitStats.isScheduled(h.weekdays, java.time.LocalDate.now()) || h.days.contains(dayKey(0))
 
     @Synchronized
     private fun readRoot(ctx: Context): JSONObject {
@@ -46,11 +46,19 @@ object HabitStore {
         tmp.renameTo(File(ctx.filesDir, FILE))
     }
 
+    private fun weekdaysFrom(a: JSONArray?): Set<Int> {
+        if (a == null) return emptySet()
+        val out = HashSet<Int>()
+        for (i in 0 until a.length()) { val v = a.optInt(i, 0); if (v in 1..7) out.add(v) }
+        return if (out.size == 7) emptySet() else out
+    }
+
     private fun fromJson(o: JSONObject): Habit {
         val d = o.optJSONArray("days") ?: JSONArray()
         return Habit(
             o.optLong("id"), o.optString("name"), o.optString("emoji", "✅"), o.optLong("created"),
-            HashSet<String>().also { s -> for (i in 0 until d.length()) s.add(d.optString(i)) }
+            HashSet<String>().also { s -> for (i in 0 until d.length()) s.add(d.optString(i)) },
+            weekdaysFrom(o.optJSONArray("wd"))
         )
     }
 
@@ -60,11 +68,14 @@ object HabitStore {
     }
 
     @Synchronized
-    fun add(ctx: Context, name: String, emoji: String) {
+    fun add(ctx: Context, name: String, emoji: String, weekdays: Set<Int> = emptySet()) {
         val root = readRoot(ctx)
         val arr = root.optJSONArray("habits") ?: JSONArray()
         val now = System.currentTimeMillis()
-        arr.put(JSONObject().put("id", now).put("name", name.trim()).put("emoji", emoji).put("created", now).put("days", JSONArray()))
+        val o = JSONObject().put("id", now).put("name", name.trim()).put("emoji", emoji).put("created", now).put("days", JSONArray())
+        val wd = weekdays.filter { it in 1..7 }.toSortedSet()
+        if (wd.isNotEmpty() && wd.size < 7) o.put("wd", JSONArray(wd.toList()))
+        arr.put(o)
         root.put("habits", arr)
         writeRoot(ctx, root)
     }

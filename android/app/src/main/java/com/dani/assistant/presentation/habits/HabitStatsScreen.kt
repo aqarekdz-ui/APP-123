@@ -50,7 +50,7 @@ fun HabitStatsScreen(onBack: () -> Unit) {
     val nowYm = YearMonth.from(today)
     var ym by remember { mutableStateOf(nowYm) }
 
-    val rates30 = habits.map { HabitStats.rate(it.days, createdDate(it), today, 30) }
+    val rates30 = habits.map { HabitStats.rate(it.days, createdDate(it), today, 30, it.weekdays) }
     val overall = HabitStats.overall(rates30)
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -69,12 +69,12 @@ fun HabitStatsScreen(onBack: () -> Unit) {
             }
             LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(habits, key = { it.id }) { h ->
-                    val r30 = HabitStats.rate(h.days, createdDate(h), today, 30)
-                    val r7 = HabitStats.rate(h.days, createdDate(h), today, 7)
-                    val cur = HabitStats.currentStreak(h.days, today)
-                    val best = HabitStats.bestStreak(h.days)
+                    val r30 = HabitStats.rate(h.days, createdDate(h), today, 30, h.weekdays)
+                    val r7 = HabitStats.rate(h.days, createdDate(h), today, 7, h.weekdays)
+                    val cur = HabitStats.currentStreak(h.days, today, h.weekdays)
+                    val best = HabitStats.bestStreak(h.days, h.weekdays)
                     val monthDone = HabitStats.monthCount(h.days, ym)
-                    val grid = HabitStats.monthGrid(h.days, ym, today)
+                    val grid = HabitStats.monthGrid(h.days, ym, today, h.weekdays)
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(h.emoji + " " + h.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -95,10 +95,10 @@ fun HabitStatsScreen(onBack: () -> Unit) {
                                         val bg = when {
                                             c.day == 0 -> MaterialTheme.colorScheme.surface
                                             c.done -> MaterialTheme.colorScheme.primary
-                                            c.future -> MaterialTheme.colorScheme.surface
+                                            c.future || !c.scheduled -> MaterialTheme.colorScheme.surface
                                             else -> MaterialTheme.colorScheme.surfaceVariant
                                         }
-                                        val fg = if (c.done) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        val fg = if (c.done) MaterialTheme.colorScheme.onPrimary else if (c.scheduled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline
                                         Box(
                                             modifier = Modifier.size(34.dp).clip(RoundedCornerShape(6.dp)).background(bg),
                                             contentAlignment = Alignment.Center
