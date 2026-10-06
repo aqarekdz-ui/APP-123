@@ -21,7 +21,7 @@ object SigningCheck {
             val info = ctx.packageManager.getPackageInfo(ctx.packageName, PackageManager.GET_SIGNING_CERTIFICATES).signingInfo
             (info?.apkContentsSigners ?: emptyArray()).map { it.toByteArray() }
         } else {
-            ctx.packageManager.getPackageInfo(ctx.packageName, PackageManager.GET_SIGNATURES).signatures.map { it.toByteArray() }
+            ctx.packageManager.getPackageInfo(ctx.packageName, PackageManager.GET_SIGNATURES).signatures?.map { it.toByteArray() } ?: emptyList()
         }
     } catch (e: Exception) { emptyList() }
 
