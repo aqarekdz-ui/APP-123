@@ -1,12 +1,18 @@
 package com.dani.assistant.core.money
 
+import android.app.Application
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], application = Application::class)
 class ReceiptParserTest {
     private val cats = listOf("أكل", "مواصلات", "فواتير", "صحة", "ترفيه", "شغل", "بيت", "أخرى")
     private fun p(raw: String) = ReceiptParser.parse(raw, cats)!!
