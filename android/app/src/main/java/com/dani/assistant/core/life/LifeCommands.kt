@@ -531,9 +531,14 @@ object LifeCommands {
             .map { (k, v) -> k to v.sumOf { it.amount } }.sortedByDescending { it.second }.take(4)
         if (cats.isNotEmpty()) sb.append("\n").append(cats.joinToString("  •  ") { it.first + " " + MoneyStore.fmt(it.second) })
         if (title == "هذا الشهر") {
-            val p = com.dani.assistant.core.money.MoneyReports.pace(MoneyStore.entries(ctx), System.currentTimeMillis())
+            val nowC = java.util.Calendar.getInstance()
+            val upc = try {
+                com.dani.assistant.core.money.RecurrenceMath.upcomingTotal(com.dani.assistant.core.money.RecurringExpenses.list(ctx),
+                    nowC.get(java.util.Calendar.YEAR) * 12 + nowC.get(java.util.Calendar.MONTH), nowC.get(java.util.Calendar.DAY_OF_MONTH))
+            } catch (e: Exception) { 0L }
+            val p = com.dani.assistant.core.money.MoneyReports.pace(MoneyStore.entries(ctx), System.currentTimeMillis(), upc)
             if (p.spent > 0) {
-                sb.append("\n\n📈 توقع نهاية الشهر: ~").append(MoneyStore.fmt(p.projected)).append(if (p.fixed > 0) " (الثابتة " + MoneyStore.fmt(p.fixed) + " ما تتضاعفش)" else "")
+                sb.append("\n\n📈 توقع نهاية الشهر: ~").append(MoneyStore.fmt(p.projected)).append(if (p.fixed > 0 || p.upcomingFixed > 0) " (الثابتة ما تتضاعفش" + (if (p.upcomingFixed > 0) "، وجايين " + MoneyStore.fmt(p.upcomingFixed) else "") + ")" else "")
                 if (p.pct != null) sb.append("\nمقارنة بنفس الفترة من الشهر الفايت (").append(MoneyStore.fmt(p.prevSamePeriod)).append("): ").append(if (p.pct >= 0) "+" else "").append(p.pct).append("%")
             }
         }

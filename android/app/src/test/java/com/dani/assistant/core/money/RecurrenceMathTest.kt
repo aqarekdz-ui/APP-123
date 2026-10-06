@@ -47,4 +47,16 @@ class RecurrenceMathTest {
         val jan = 2027 * 12
         assertEquals(listOf(jan - 1, jan), RecurrenceMath.dueMonths(jan - 2, jan, today = 15, day = 1))
     }
+
+    @Test fun upcomingTotalCountsOnlyPendingActiveItems() {
+        val items = listOf(
+            RecurringItem(1, "كراء", 30000, day = 25, last = cur - 1),            // جاي
+            RecurringItem(2, "نت", 2000, day = 5, last = cur - 1),                // فات يومو ولسا ما تسجلش: يتسجل لوحدو، ما نحسبوهش
+            RecurringItem(3, "تأمين", 1500, day = 20, last = cur),               // مسجل
+            RecurringItem(4, "اشتراك", 800, day = 28, active = false, last = cur - 1), // موقوف
+            RecurringItem(5, "ماء", 700, day = 15, last = cur - 1)                // جاي
+        )
+        assertEquals(30700L, RecurrenceMath.upcomingTotal(items, cur, today = 10))
+        assertEquals(0L, RecurrenceMath.upcomingTotal(emptyList(), cur, today = 10))
+    }
 }

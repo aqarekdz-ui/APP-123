@@ -7,7 +7,7 @@ import java.util.Locale
 
 data class MonthTotal(val year: Int, val month: Int, val income: Long, val expense: Long)
 
-data class Pace(val spent: Long, val prevSamePeriod: Long, val projected: Long, val pct: Int?, val fixed: Long = 0)
+data class Pace(val spent: Long, val prevSamePeriod: Long, val projected: Long, val pct: Int?, val fixed: Long = 0, val upcomingFixed: Long = 0)
 
 /** تقارير المال (منطق صافي، يتجرّب بـ JUnit): CSV + مجاميع للرسوم. */
 object MoneyReports {
@@ -56,7 +56,7 @@ object MoneyReports {
     }
 
     /** وتيرة الصرف: المصروف لحد اليوم، نفس الفترة من الشهر الفايت، التوقع لنهاية الشهر، والنسبة. */
-    fun pace(entries: List<MoneyEntry>, nowMs: Long): Pace {
+    fun pace(entries: List<MoneyEntry>, nowMs: Long, upcomingFixed: Long = 0): Pace {
         val now = Calendar.getInstance(); now.timeInMillis = nowMs
         val day = now.get(Calendar.DAY_OF_MONTH)
         val dim = now.getActualMaximum(Calendar.DAY_OF_MONTH)
@@ -71,9 +71,9 @@ object MoneyReports {
         val prev = ex.filter { it.date in prevStart until prevEnd }.sumOf { it.amount }
         // المصاريف الثابتة (note يبدأ بـ 🔁) ما تتضاعفش: تتحسب كما هي، والباقي يتوزع على أيام الشهر
         val fixed = ex.filter { it.date in mStart until tomorrow && it.note.startsWith("🔁") }.sumOf { it.amount }
-        val projected = fixed + (spent - fixed) * dim / day
+        val projected = fixed + upcomingFixed + (spent - fixed) * dim / day
         val pct = if (prev > 0) Math.round((spent - prev) * 100.0 / prev).toInt() else null
-        return Pace(spent, prev, projected, pct, fixed)
+        return Pace(spent, prev, projected, pct, fixed, upcomingFixed)
     }
 
     /** آخر [count] أشهر (الأقدم أولاً) تنتهي بشهر [nowMs]. */
