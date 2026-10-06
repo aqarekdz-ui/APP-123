@@ -72,16 +72,7 @@ object ReceiptReader {
     suspend fun read(ctx: Context, uri: Uri): ReceiptResult {
         val jpeg = withContext(Dispatchers.IO) { loadJpeg(ctx, uri) }
         val raw = GeminiAI.visionJson(prompt, Base64.encodeToString(jpeg, Base64.NO_WRAP))
-        val o = JSONObject(raw.replace("```json", "").replace("```", "").trim())
-        val totalD = o.optDouble("total", 0.0)
-        val cat = o.optString("category").let { if (it in MoneyStore.expenseCategories) it else "أخرى" }
-        val date = o.optString("date").takeIf { it.length == 10 }?.let {
-            try { SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(it)?.time } catch (e: Exception) { null }
-        }
-        return ReceiptResult(
-            if (totalD.isNaN() || totalD < 0) 0L else Math.round(totalD),
-            o.optString("merchant").trim(), cat, date,
-            o.optString("currency", "DZD").uppercase().ifBlank { "DZD" }, o.optString("items").trim()
-        )
+        return ReceiptParser.parse(raw, MoneyStore.expenseCategories)
+            ?: throw IllegalStateException("ما فهمتش رد الذكاء الاصطناعي. جرّب صورة أوضح.")
     }
 }
