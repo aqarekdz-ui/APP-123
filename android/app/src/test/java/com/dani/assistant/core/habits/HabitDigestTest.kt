@@ -55,4 +55,29 @@ class HabitDigestTest {
     @Test fun weekly_nullWhenNoHabits() {
         assertNull(HabitDigest.weekly(emptyList(), today, zone))
     }
+
+    @Test fun evening_nullWhenAllDone() {
+        val h = Habit(1, "ماء", "💧", ms(today.minusDays(9)), setOf(today.toString()))
+        assertNull(HabitDigest.evening(listOf(h), today))
+        assertNull(HabitDigest.evening(emptyList(), today))
+    }
+
+    @Test fun evening_listsPendingAndRisk() {
+        val a = Habit(1, "ماء", "💧", ms(today.minusDays(20)), streakDays(4, today))
+        val b = Habit(2, "قراءة", "📖", ms(today.minusDays(20)), emptySet())
+        val e = HabitDigest.evening(listOf(a, b), today)!!
+        assertEquals("🌙 باقي 2 عادات اليوم", e.title)
+        assertTrue(e.body.contains("⬜ 💧 ماء"))
+        assertTrue(e.body.contains("⬜ 📖 قراءة"))
+        assertTrue(e.body.contains("💧 ماء (4)"))
+    }
+
+    @Test fun evening_singleTitle_andUnscheduledIgnored() {
+        val a = Habit(1, "ماء", "💧", ms(today.minusDays(20)), emptySet())
+        val mon = Habit(2, "جري", "🏃", ms(today.minusDays(20)), emptySet(), setOf(1)) // الاثنين فقط
+        val e = HabitDigest.evening(listOf(a, mon), today)!!
+        assertEquals("🌙 باقي عادة وحدة اليوم", e.title)
+        assertTrue(!e.body.contains("جري"))
+        assertTrue(!e.body.contains("🔥")) // بلا سلسلة >= 3
+    }
 }

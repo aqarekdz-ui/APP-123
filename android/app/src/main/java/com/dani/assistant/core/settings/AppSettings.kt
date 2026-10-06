@@ -26,6 +26,10 @@ object AppSettings {
     fun monthlyReportEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("monthly_report", true)
     fun setMonthlyReportEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("monthly_report", v).apply()
 
+    /** تذكير العادات المسائي (21:00): فقط إذا بقات عادات ما تمّتش. */
+    fun habitReminderEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("habit_reminder", true)
+    fun setHabitReminderEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("habit_reminder", v).apply()
+
     /** وقت الملخص بالدقائق من منتصف الليل (الافتراضي 08:00). */
     fun digestMinutes(ctx: Context): Int = prefs(ctx).getInt("digest_min", 8 * 60)
     fun setDigestMinutes(ctx: Context, m: Int) = prefs(ctx).edit().putInt("digest_min", m).apply()

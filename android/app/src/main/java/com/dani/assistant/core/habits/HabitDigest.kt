@@ -27,6 +27,25 @@ object HabitDigest {
         return Morning(sb.toString(), risk)
     }
 
+    data class Evening(val title: String, val body: String)
+
+    /** تذكير مسائي: العادات المبرمجة اليوم وما تمّتش (null إذا كلشي تمّ أو ما كاين شيء مبرمج). */
+    fun evening(habits: List<Habit>, today: LocalDate): Evening? {
+        val key = today.toString()
+        val due = habits.filter { HabitStats.isScheduled(it.weekdays, today) && !it.days.contains(key) }
+        if (due.isEmpty()) return null
+        val risk = due.mapNotNull { h ->
+            val st = HabitStats.currentStreak(h.days, today, h.weekdays)
+            if (st >= RISK_MIN_STREAK) label(h) + " (" + st + ")" else null
+        }
+        val title = if (due.size == 1) "🌙 باقي عادة وحدة اليوم" else "🌙 باقي " + due.size + " عادات اليوم"
+        val sb = StringBuilder()
+        due.take(6).forEach { sb.append("⬜ ").append(label(it)).append("\n") }
+        if (due.size > 6) sb.append("… و").append(due.size - 6).append(" أخرى\n")
+        if (risk.isNotEmpty()) sb.append("🔥 سلسلة تتقطع إذا ما درتهاش: ").append(risk.joinToString("، "))
+        return Evening(title, sb.toString().trimEnd())
+    }
+
     /** سطر أسبوعي: التزام عام آخر 7 أيام + أطول سلسلة حالية (>= 2). null إذا ما كاين عادات. */
     fun weekly(habits: List<Habit>, today: LocalDate, zone: ZoneId = ZoneId.systemDefault()): String? {
         if (habits.isEmpty()) return null

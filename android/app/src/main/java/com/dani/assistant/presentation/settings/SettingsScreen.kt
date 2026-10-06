@@ -55,6 +55,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var digestMin by remember { mutableStateOf(AppSettings.digestMinutes(context)) }
     var weeklyOn by remember { mutableStateOf(AppSettings.weeklyReviewEnabled(context)) }
     var monthlyOn by remember { mutableStateOf(AppSettings.monthlyReportEnabled(context)) }
+    var habitRemOn by remember { mutableStateOf(AppSettings.habitReminderEnabled(context)) }
     var groqKey by remember { mutableStateOf(ProviderSettings.groqKey(context)) }
     var orKey by remember { mutableStateOf(ProviderSettings.openRouterKey(context)) }
     var knowledgeCount by remember { mutableStateOf(KnowledgeBase.getAll(context).size) }
@@ -161,6 +162,16 @@ fun SettingsScreen(onBack: () -> Unit) {
             monthlyOn = it
             AppSettings.setMonthlyReportEnabled(context, it)
             com.dani.assistant.core.digest.MonthlyReport.schedule(context)
+        }
+
+        SettingSwitch(
+            title = "تذكير العادات المسائي",
+            desc = "كل ليلة على 21:00 إشعار بالعادات اللي ما تمّتش اليوم (والسلاسل اللي تتقطع). ما يجيش إذا كلشي تمّ. التوقيت تقريبي (WorkManager) وقد يتأخر شوية.",
+            checked = habitRemOn
+        ) {
+            habitRemOn = it
+            AppSettings.setHabitReminderEnabled(context, it)
+            com.dani.assistant.core.habits.HabitReminder.schedule(context)
         }
 
         // ---- الصوت الجزائري ----
