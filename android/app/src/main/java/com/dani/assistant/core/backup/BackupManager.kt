@@ -53,6 +53,23 @@ data class ImportResult(
     val notes: Int = 0
 )
 
+/** مصدر المهام للنسخ الاحتياطي: التطبيق الحقيقي (Room) أو بديل في الاختبارات. */
+interface BackupTaskSource {
+    suspend fun all(): List<Task>
+    suspend fun insert(task: Task): Long
+    suspend fun setReminder(taskId: Long, title: String, time: Long)
+}
+
+/** الافتراضي: TaskRepository الحقيقي (يلمس DaniApplication فقط عند الاستعمال). */
+object AppTaskSource : BackupTaskSource {
+    private val repo get() = DaniApplication.instance.taskRepository
+    override suspend fun all(): List<Task> = repo.getAllTasks().first()
+    override suspend fun insert(task: Task): Long = repo.insertTask(task)
+    override suspend fun setReminder(taskId: Long, title: String, time: Long) {
+        repo.setTaskReminder(taskId, title, time, ReminderType.NOTIFICATION)
+    }
+}
+
 /** نسخة احتياطية موحّدة: مهام + معلومات + معرفة + رسائل الشات + أسرار (مشفّرة بكلمة سر النسخة، اختيارية). */
 object BackupManager {
     private const val VERSION = 1
@@ -130,9 +147,8 @@ object BackupManager {
         JSONObject(json).let { it.has("app") && it.getString("app") == "dani" }
     } catch (e: Exception) { false }
 
-    suspend fun export(ctx: Context, pass: String): String {
-        val app = DaniApplication.instance
-        val tasks = app.taskRepository.getAllTasks().first()
+    suspend fun export(ctx: Context, pass: String, src: BackupTaskSource = AppTaskSource): String {
+        val tasks = src.all()
         val tasksArr = JSONArray()
         tasks.forEach {
             tasksArr.put(
@@ -185,15 +201,14 @@ object BackupManager {
     }
 
     /** دمج (لا يمسح شيء موجود): يتخطى المكرّر. */
-    suspend fun import(ctx: Context, json: String, pass: String): ImportResult {
+    suspend fun import(ctx: Context, json: String, pass: String, src: BackupTaskSource = AppTaskSource): ImportResult {
         val root = JSONObject(json)
-        val repo = DaniApplication.instance.taskRepository
 
         // الأهداف أولاً (باش نربطو المهام المستوردة بيها)
         val goalsAdded = root.optJSONObject("goals")?.let { GoalStore.importJson(ctx, it) } ?: 0
 
         // المهام
-        val existing = repo.getAllTasks().first().map { it.title + "|" + it.createdAt }.toMutableSet()
+        val existing = src.all().map { it.title + "|" + it.createdAt }.toMutableSet()
         var tasksAdded = 0
         val arr = root.optJSONArray("tasks") ?: JSONArray()
         for (i in 0 until arr.length()) {
@@ -221,14 +236,14 @@ object BackupManager {
                     }
                 } ?: emptyList()
             )
-            val id = repo.insertTask(task)
+            val id = src.insert(task)
             if (!o.isNull("area")) AreaStore.set(ctx, id, o.getString("area"))
             if (o.has("goal") && !o.isNull("goal")) GoalStore.attachTask(ctx, o.getLong("goal"), id)
             tasksAdded++
             if (due != null && due > System.currentTimeMillis() &&
                 status != TaskStatus.COMPLETED && status != TaskStatus.CANCELLED
             ) {
-                repo.setTaskReminder(id, title, due, ReminderType.NOTIFICATION)
+                src.setReminder(id, title, due)
             }
         }
 
