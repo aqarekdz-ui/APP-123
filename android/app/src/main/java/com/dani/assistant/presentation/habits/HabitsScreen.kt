@@ -1,5 +1,7 @@
 package com.dani.assistant.presentation.habits
 
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -22,6 +24,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,7 +41,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dani.assistant.core.habits.Habit
+import com.dani.assistant.core.habits.HabitReports
 import com.dani.assistant.core.habits.HabitStore
+import androidx.core.content.FileProvider
+import java.io.File
+import java.time.LocalDate
 import java.util.Calendar
 
 private val weekdayLetters = listOf("ح", "ن", "ث", "ر", "خ", "ج", "س") // الأحد..السبت
@@ -68,6 +75,23 @@ fun HabitsScreen(onBack: () -> Unit, onOpenStats: () -> Unit = {}) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { showAdd = true }) { Text("➕ عادة جديدة") }
             if (habits.isNotEmpty()) Button(onClick = onOpenStats) { Text("📊 إحصائيات") }
+            if (habits.isNotEmpty()) OutlinedButton(onClick = {
+                try {
+                    val dir = File(context.cacheDir, "exports")
+                    dir.mkdirs()
+                    val f = File(dir, "dani_habits_" + LocalDate.now().toString() + ".csv")
+                    f.writeText(HabitReports.csv(habits, LocalDate.now()), Charsets.UTF_8)
+                    val uri = FileProvider.getUriForFile(context, "com.dani.assistant.fileprovider", f)
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/csv"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(send, "تصدير CSV"))
+                } catch (e: Exception) {
+                    Toast.makeText(context, "ما قدرتش نصدّر: " + (e.message ?: "خطأ"), Toast.LENGTH_LONG).show()
+                }
+            }) { Text("📤 CSV") }
         }
         if (habits.isEmpty()) Text("ما كاينش عادات بعد. زيد عادة (ماء، رياضة، قراءة...) وتابعها كل يوم.", color = MaterialTheme.colorScheme.outline)
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
