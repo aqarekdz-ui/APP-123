@@ -262,6 +262,7 @@ private fun ColumnScope.BudgetTab(entries: List<MoneyEntry>) {
     val context = LocalContext.current
     var budgets by remember { mutableStateOf(MoneyStore.budgets(context)) }
     var editCat by remember { mutableStateOf<String?>(null) }
+    var showSuggest by remember { mutableStateOf(false) }
     val (start, end) = monthRange(0)
     val spentBy = entries.filter { it.type == "expense" && it.date in start until end }
         .groupBy { it.category.ifBlank { "أخرى" } }.mapValues { e -> e.value.sumOf { it.amount } }
@@ -273,6 +274,7 @@ private fun ColumnScope.BudgetTab(entries: List<MoneyEntry>) {
             Text("🎯 ميزانية " + monthTitle(0), fontWeight = FontWeight.Bold)
             if (totalBudget > 0) Text("المجموع: " + MoneyStore.fmt(totalSpent) + " / " + MoneyStore.fmt(totalBudget), fontSize = 13.sp)
             else Text("اضغط على فئة باش تحدد مبلغها الشهري.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+            TextButton(onClick = { showSuggest = true }) { Text("💡 اقترح ميزانيات من آخر 3 أشهر") }
         }
     }
     LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -303,6 +305,46 @@ private fun ColumnScope.BudgetTab(entries: List<MoneyEntry>) {
                 }
             }
         }
+    }
+    if (showSuggest) {
+        val sug = com.dani.assistant.core.money.BudgetSuggest.suggest(entries, System.currentTimeMillis(), budgets)
+        AlertDialog(
+            onDismissRequest = { showSuggest = false },
+            title = { Text("💡 ميزانيات مقترحة") },
+            text = {
+                if (sug.isEmpty()) {
+                    Text("ما كاينش اقتراح: إما ما عندكش مصاريف في الأشهر الكاملة الفايتة، وإما ميزانياتك تطابق المتوسط.", fontSize = 13.sp)
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("المتوسط الشهري (آخر " + sug.maxOf { it.months } + " أشهر كاملة) مقرّب لفوق لأقرب 500 دج:", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                        sug.forEach { x ->
+                            Text(
+                                x.category + ": " + MoneyStore.fmt(x.suggested) +
+                                    (if (x.current > 0) "  (حالياً " + MoneyStore.fmt(x.current) + ")" else "  (جديدة)"),
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                if (sug.isNotEmpty()) Button(onClick = {
+                    sug.forEach { MoneyStore.setBudget(context, it.category, it.suggested) }
+                    budgets = MoneyStore.budgets(context)
+                    showSuggest = false
+                }) { Text("طبّق الكل") }
+            },
+            dismissButton = {
+                Row {
+                    if (sug.any { it.current == 0L } && sug.any { it.current > 0L }) TextButton(onClick = {
+                        sug.filter { it.current == 0L }.forEach { MoneyStore.setBudget(context, it.category, it.suggested) }
+                        budgets = MoneyStore.budgets(context)
+                        showSuggest = false
+                    }) { Text("الجديدة فقط") }
+                    TextButton(onClick = { showSuggest = false }) { Text("سكّر") }
+                }
+            }
+        )
     }
     editCat?.let { cat ->
         var txt by remember(cat) { mutableStateOf(budgets[cat]?.toString() ?: "") }
