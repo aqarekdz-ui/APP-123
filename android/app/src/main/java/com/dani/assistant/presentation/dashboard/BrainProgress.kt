@@ -14,6 +14,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,6 +52,7 @@ import com.dani.assistant.core.progress.BrainProgressMath
 import com.dani.assistant.domain.model.Task
 import kotlinx.coroutines.launch
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -72,12 +74,46 @@ private fun headPath(closed: Boolean): Path = Path().apply {
     if (closed) close()
 }
 
-private fun brainFolds(): Path = Path().apply {
-    moveTo(36f, 36f); quadraticBezierTo(42f, 28f, 48f, 35f); quadraticBezierTo(54f, 42f, 60f, 34f)
-    moveTo(37f, 42f); quadraticBezierTo(45f, 48f, 53f, 43f); quadraticBezierTo(58f, 40f, 63f, 43f)
-    moveTo(44f, 27f); quadraticBezierTo(50f, 22f, 56f, 27f)
-    moveTo(50f, 24f); lineTo(50f, 46f)
+/** حدود المخ (نصفا الكرة) داخل الرأس: حواف متعرّجة. */
+private fun brainOutline(): Path = Path().apply {
+    moveTo(30f, 36f)
+    quadraticBezierTo(27f, 28f, 34f, 24f)
+    quadraticBezierTo(37f, 16f, 46f, 18f)
+    quadraticBezierTo(52f, 12f, 60f, 17f)
+    quadraticBezierTo(68f, 16f, 70f, 24f)
+    quadraticBezierTo(75f, 29f, 72f, 37f)
+    quadraticBezierTo(75f, 44f, 68f, 46f)
+    quadraticBezierTo(63f, 52f, 57f, 48f)
+    quadraticBezierTo(52f, 51f, 46f, 47f)
+    quadraticBezierTo(38f, 50f, 35f, 44f)
+    quadraticBezierTo(27f, 43f, 30f, 36f)
+    close()
 }
+
+/** التلافيف الأساسية (دايماً ظاهرة). */
+private fun gyriBase(): Path = Path().apply {
+    moveTo(40f, 27f); quadraticBezierTo(46f, 22f, 52f, 27f); quadraticBezierTo(56f, 31f, 62f, 26f)
+    moveTo(34f, 34f); quadraticBezierTo(42f, 30f, 48f, 36f); quadraticBezierTo(54f, 41f, 60f, 35f); quadraticBezierTo(66f, 31f, 70f, 35f)
+    moveTo(38f, 42f); quadraticBezierTo(46f, 38f, 52f, 43f); quadraticBezierTo(58f, 47f, 64f, 42f)
+}
+
+/** تلافيف إضافية + الشق الأوسط (تظهر من مرحلة "تقدم ممتاز"). */
+private fun gyriRich(): Path = Path().apply {
+    moveTo(52f, 16f); quadraticBezierTo(50f, 28f, 54f, 36f); quadraticBezierTo(56f, 42f, 53f, 47f)
+    moveTo(32f, 29f); quadraticBezierTo(37f, 27f, 40f, 31f)
+    moveTo(63f, 21f); quadraticBezierTo(68f, 22f, 69f, 27f)
+    moveTo(60f, 40f); quadraticBezierTo(64f, 38f, 68f, 41f)
+}
+
+/** جذع الدماغ. */
+private fun brainStem(): Path = Path().apply {
+    moveTo(47f, 47f); quadraticBezierTo(49f, 56f, 46f, 66f)
+}
+
+private val sparkSpots = listOf(
+    Offset(40f, 27f), Offset(52f, 27f), Offset(62f, 26f), Offset(48f, 36f),
+    Offset(60f, 35f), Offset(46f, 43f), Offset(64f, 42f)
+)
 
 @Composable
 fun BrainProgress(tasks: List<Task>, modifier: Modifier = Modifier) {
@@ -118,12 +154,17 @@ fun BrainProgress(tasks: List<Task>, modifier: Modifier = Modifier) {
     val track = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
     val headPath = remember { headPath(true) }
     val headLine = remember { headPath(false) }
-    val folds = remember { brainFolds() }
+    val brainShape = remember { brainOutline() }
+    val gyri1 = remember { gyriBase() }
+    val gyri2 = remember { gyriRich() }
+    val stem = remember { brainStem() }
     val desc = "تقدم مهام اليوم: " + r.percent + " بالمئة، " + r.done + " من " + r.total + ". " + stage.label
 
     Card(modifier = modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = desc }) {
+        BoxWithConstraints {
+        val ringSize = minOf(maxOf(maxWidth * 0.38f, 104.dp), 150.dp)
         Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(128.dp), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.size(ringSize), contentAlignment = Alignment.Center) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val s = size.minDimension
                     val c = Offset(size.width / 2f, size.height / 2f)
@@ -137,6 +178,13 @@ fun BrainProgress(tasks: List<Task>, modifier: Modifier = Modifier) {
                     val glow = (stage.glow * (0.6f + 0.4f * br) + 0.45f * k + 0.3f * b).coerceIn(0f, 1f)
 
                     drawArc(color = track, startAngle = -90f, sweepAngle = 360f, useCenter = false, topLeft = arcTop, size = arcSize, style = Stroke(stroke))
+                    // علامات 0/25/50/75%
+                    for (i in 0 until 4) {
+                        val ta = (-90f + i * 90f) * (PI.toFloat() / 180f)
+                        val r1 = arcSize.width / 2f - stroke * 0.9f
+                        val r2 = arcSize.width / 2f + stroke * 0.9f
+                        drawLine(color = track.copy(alpha = 0.6f), start = Offset(c.x + r1 * cos(ta), c.y + r1 * sin(ta)), end = Offset(c.x + r2 * cos(ta), c.y + r2 * sin(ta)), strokeWidth = stroke * 0.18f)
+                    }
                     rotate(-90f, c) {
                         val sweep = 360f * progress
                         if (sweep > 0.5f) {
@@ -156,23 +204,37 @@ fun BrainProgress(tasks: List<Task>, modifier: Modifier = Modifier) {
                         drawCircle(color = accent, radius = s * 0.012f, center = Offset(c.x + orbitR * cos(a), c.y + orbitR * sin(a)), alpha = 0.35f + 0.4f * glow)
                     }
 
-                    // الرأس: حركة طفو + التفاف خفيف (يوهم الدوران) + نبضة عند التغيّر
+                    // الرأس: دوران بطيء 360° حول المحور العمودي (وهم 2D بمقياس أفقي cos)، طفو، وإيماءة عند إنجاز مهمة
                     val kk = s * HEAD_SCALE
-                    val sway = 0.04f + 0.015f * stage.level
-                    val angleRad = angle0 * (PI.toFloat() / 180f)
-                    val sx = 1f - sway + sway * cos(angleRad)
+                    val yawRad = angle0 * (PI.toFloat() / 180f)
+                    val rawSx = cos(yawRad)
+                    val sx = if (rawSx >= 0f) maxOf(rawSx, 0.1f) else minOf(rawSx, -0.1f) // ما يصير شريط رقيق تماماً
+                    val facing = 0.4f + 0.6f * abs(rawSx)                                 // الجنب يخفت شوية
                     val fy = if (reduced) 0f else floatY.value * s * 0.012f
                     withTransform({
                         translate(c.x - UNIT / 2f * kk, c.y - UNIT / 2f * kk + fy)
                         scale(kk, kk, Offset.Zero)
-                        scale(sx, 1f + 0.05f * k + 0.04f * b, Offset(UNIT / 2f, UNIT / 2f))
+                        scale(1f + 0.05f * k + 0.04f * b, 1f + 0.05f * k + 0.04f * b, Offset(UNIT / 2f, UNIT / 2f))
+                        rotate(-5f * k, Offset(UNIT / 2f, 70f))
                     }) {
-                        drawPath(headPath, brush = Brush.verticalGradient(listOf(primary.copy(alpha = 0.16f), primary.copy(alpha = 0.02f)), startY = 8f, endY = 92f))
-                        drawPath(headLine, brush = Brush.linearGradient(listOf(primary, accent), start = Offset(20f, 10f), end = Offset(90f, 92f)), style = Stroke(1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round))
-                        drawCircle(brush = Brush.radialGradient(listOf(accent.copy(alpha = glow), Color.Transparent), center = Offset(50f, 35f), radius = 26f), radius = 26f, center = Offset(50f, 35f))
-                        drawOval(color = accent.copy(alpha = 0.55f + 0.45f * glow), topLeft = Offset(31f, 22f), size = Size(38f, 28f), style = Stroke(1.4f))
-                        drawPath(folds, color = accent.copy(alpha = 0.5f + 0.5f * glow), style = Stroke(1.1f, cap = StrokeCap.Round))
-                        drawCircle(color = Color.White.copy(alpha = 0.35f + 0.6f * glow), radius = 1.6f + 1.2f * (k + b).coerceAtMost(1f), center = Offset(50f, 35f))
+                        // هالة العقل (دائرية، ما تتأثرش بالدوران)
+                        drawCircle(brush = Brush.radialGradient(listOf(accent.copy(alpha = 0.55f * glow), Color.Transparent), center = Offset(51f, 33f), radius = 34f), radius = 34f, center = Offset(51f, 33f))
+                        withTransform({ scale(sx, 1f, Offset(UNIT / 2f, UNIT / 2f)) }) {
+                            drawPath(headPath, brush = Brush.verticalGradient(listOf(primary.copy(alpha = 0.16f * facing), primary.copy(alpha = 0.02f)), startY = 8f, endY = 92f))
+                            drawPath(headLine, brush = Brush.linearGradient(listOf(primary.copy(alpha = facing), accent.copy(alpha = facing)), start = Offset(20f, 10f), end = Offset(90f, 92f)), style = Stroke(1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                            // المخ
+                            drawPath(brainShape, color = accent.copy(alpha = 0.08f + 0.22f * glow))
+                            drawPath(brainShape, color = accent.copy(alpha = 0.6f + 0.4f * glow), style = Stroke(1.5f, join = StrokeJoin.Round))
+                            drawOval(color = accent.copy(alpha = 0.45f + 0.4f * glow), topLeft = Offset(28f, 47f), size = Size(15f, 9f), style = Stroke(1.2f))
+                            drawPath(stem, color = accent.copy(alpha = 0.45f + 0.4f * glow), style = Stroke(2f, cap = StrokeCap.Round))
+                            drawPath(gyri1, color = accent.copy(alpha = 0.5f + 0.5f * glow), style = Stroke(1.1f, cap = StrokeCap.Round))
+                            if (stage.level >= 2) drawPath(gyri2, color = accent.copy(alpha = 0.4f + 0.5f * glow), style = Stroke(1f, cap = StrokeCap.Round))
+                            if (stage.level >= 3) {
+                                val sp = 0.4f + 0.6f * br
+                                sparkSpots.forEach { drawCircle(color = Color.White.copy(alpha = sp * glow), radius = 1.1f + 0.5f * br, center = it) }
+                            }
+                        }
+                        drawCircle(color = Color.White.copy(alpha = 0.3f + 0.6f * glow), radius = 1.6f + 1.4f * (k + b).coerceAtMost(1f), center = Offset(51f, 33f))
                     }
                 }
             }
@@ -182,6 +244,7 @@ fun BrainProgress(tasks: List<Task>, modifier: Modifier = Modifier) {
                 Text(if (r.total == 0) "0 من 0" else r.done.toString() + " من " + r.total, fontSize = 13.sp)
                 Text(stage.label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
+        }
         }
     }
 }

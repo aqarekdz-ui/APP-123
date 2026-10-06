@@ -73,4 +73,36 @@ class BrainProgressMathTest {
         assertEquals(Stage.ALMOST, BrainProgressMath.stage(99, 5))
         assertEquals(Stage.COMPLETE, BrainProgressMath.stage(100, 5))
     }
+
+    @Test fun quarterPercents() {
+        assertEquals(0, BrainProgressMath.percent(0, 4))
+        assertEquals(25, BrainProgressMath.percent(1, 4))
+        assertEquals(50, BrainProgressMath.percent(2, 4))
+        assertEquals(75, BrainProgressMath.percent(3, 4))
+        assertEquals(100, BrainProgressMath.percent(4, 4))
+        assertEquals(0, BrainProgressMath.percent(0, 0))
+    }
+
+    @Test fun quarterPercentsFromRealTasks() {
+        fun pct(done: Int, total: Int): Int {
+            val l = (1..done).map { t(TaskStatus.COMPLETED, completedAt = now) } + (1..(total - done)).map { t(TaskStatus.NEW) }
+            return BrainProgressMath.compute(l, now).percent
+        }
+        assertEquals(0, pct(0, 4)); assertEquals(25, pct(1, 4)); assertEquals(50, pct(2, 4))
+        assertEquals(75, pct(3, 4)); assertEquals(100, pct(4, 4))
+    }
+
+    @Test fun cancelledDoesNotChangePercent() {
+        val l = listOf(t(TaskStatus.COMPLETED, completedAt = now), t(TaskStatus.NEW), t(TaskStatus.CANCELLED), t(TaskStatus.CANCELLED))
+        val r = BrainProgressMath.compute(l, now)
+        assertEquals(2, r.total); assertEquals(50, r.percent)
+    }
+
+    @Test fun stageGlowAndLevelAreMonotonic() {
+        val stages = listOf(Stage.START, Stage.ON_WAY, Stage.GREAT, Stage.ALMOST, Stage.COMPLETE)
+        for (i in 1 until stages.size) {
+            assert(stages[i].glow > stages[i - 1].glow)
+            assert(stages[i].level >= stages[i - 1].level)
+        }
+    }
 }
