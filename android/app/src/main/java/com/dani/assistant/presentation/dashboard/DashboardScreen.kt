@@ -87,6 +87,7 @@ fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, 
                 }
             }
         }
+        BrainProgress(tasks)
         Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onOpenHabits) { Text("✅ العادات" + habitsLabel) }
             OutlinedButton(onClick = onOpenMoney) { Text("💰 المال") }
