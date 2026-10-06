@@ -187,6 +187,28 @@ object EventStore {
 object EventAlarms {
     private const val CHANNEL = "dani_events"
     const val ACT = "dani.event.fire"
+    const val ACT_SNOOZE = "dani.event.snooze"          // زر "بعد ساعة" في الإشعار
+    const val ACT_SNOOZE_FIRE = "dani.event.snooze_fire" // الإطلاق بعد التأجيل
+    const val ACT_DONE = "dani.event.done"              // زر "تم"
+    const val SNOOZE_MS = 60 * 60 * 1000L
+
+    /** requestCodes متباعدة (k+10, k+20, k+30) باش ما يخلطوش PendingIntent تاع المنبه السنوي. */
+    fun actionCode(id: Long, k: Int, kind: Int): Int = code(id, k + kind)
+
+    private fun actionPi(ctx: Context, action: String, id: Long, k: Int, kind: Int): PendingIntent {
+        val i = Intent(ctx, EventReceiver::class.java).setAction(action).putExtra("ev", id).putExtra("k", k)
+        return PendingIntent.getBroadcast(ctx, actionCode(id, k, kind), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    /** تأجيل: يشيل الإشعار ويعاود يطلعو بعد ساعة (بلا ما يمسّ المنبه السنوي). */
+    fun snooze(ctx: Context, id: Long, k: Int) {
+        try { NotificationManagerCompat.from(ctx).cancel(code(id, k)) } catch (ex: Exception) { }
+        setAt(ctx, System.currentTimeMillis() + SNOOZE_MS, actionPi(ctx, ACT_SNOOZE_FIRE, id, k, 30))
+    }
+
+    fun dismiss(ctx: Context, id: Long, k: Int) {
+        try { NotificationManagerCompat.from(ctx).cancel(code(id, k)) } catch (ex: Exception) { }
+    }
 
     fun code(id: Long, k: Int): Int = ((id xor (id ushr 32)).toInt() * 31 + k) and 0x3fffffff
 
@@ -260,6 +282,8 @@ object EventAlarms {
                 .setContentIntent(open)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .addAction(android.R.drawable.ic_popup_sync, "⏰ بعد ساعة", actionPi(ctx, ACT_SNOOZE, e.id, k, 10))
+                .addAction(android.R.drawable.checkbox_on_background, "✔ تم", actionPi(ctx, ACT_DONE, e.id, k, 20))
                 .setAutoCancel(true)
                 .build()
             NotificationManagerCompat.from(ctx).notify(code(e.id, k), n)
@@ -272,8 +296,13 @@ class EventReceiver : BroadcastReceiver() {
         val ctx = context.applicationContext
         val id = intent.getLongExtra("ev", 0L)
         val k = intent.getIntExtra("k", 1)
+        when (intent.action) {
+            EventAlarms.ACT_SNOOZE -> { EventAlarms.snooze(ctx, id, k); return }
+            EventAlarms.ACT_DONE -> { EventAlarms.dismiss(ctx, id, k); return }
+        }
         val e = EventStore.list(ctx).firstOrNull { it.id == id } ?: return
         EventAlarms.notify(ctx, e, k)
-        EventAlarms.schedule(ctx, e) // السنة الجاية (أو إلغاء إذا مرة وحدة)
+        // الإطلاق بعد التأجيل ما يعيدش الجدولة (المنبه السنوي ما تبدّلش)
+        if (intent.action != EventAlarms.ACT_SNOOZE_FIRE) EventAlarms.schedule(ctx, e) // السنة الجاية (أو إلغاء إذا مرة وحدة)
     }
 }
