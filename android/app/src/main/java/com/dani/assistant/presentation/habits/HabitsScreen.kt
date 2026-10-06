@@ -51,7 +51,7 @@ private fun dayLetter(offset: Int): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HabitsScreen(onBack: () -> Unit) {
+fun HabitsScreen(onBack: () -> Unit, onOpenStats: () -> Unit = {}) {
     val context = LocalContext.current
     var habits by remember { mutableStateOf(HabitStore.list(context)) }
     var showAdd by remember { mutableStateOf(false) }
@@ -65,7 +65,10 @@ fun HabitsScreen(onBack: () -> Unit) {
         }
         val doneToday = habits.count { it.days.contains(today) }
         Text("اليوم: " + doneToday + " / " + habits.size, color = MaterialTheme.colorScheme.outline)
-        Button(onClick = { showAdd = true }) { Text("➕ عادة جديدة") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { showAdd = true }) { Text("➕ عادة جديدة") }
+            if (habits.isNotEmpty()) Button(onClick = onOpenStats) { Text("📊 إحصائيات") }
+        }
         if (habits.isEmpty()) Text("ما كاينش عادات بعد. زيد عادة (ماء، رياضة، قراءة...) وتابعها كل يوم.", color = MaterialTheme.colorScheme.outline)
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(habits, key = { it.id }) { h ->

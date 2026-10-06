@@ -12,6 +12,7 @@ import com.dani.assistant.presentation.chat.ChatScreen
 import com.dani.assistant.presentation.memory.MemoryScreen
 import com.dani.assistant.presentation.dashboard.DashboardScreen
 import com.dani.assistant.presentation.habits.HabitsScreen
+import com.dani.assistant.presentation.habits.HabitStatsScreen
 import com.dani.assistant.presentation.money.MoneyScreen
 import com.dani.assistant.presentation.realestate.RealEstateScreen
 import com.dani.assistant.presentation.settings.SettingsScreen
@@ -89,7 +90,10 @@ fun DaniNavHost(
             com.dani.assistant.presentation.goals.GoalsScreen(onBack = { navController.popBackStack() })
         }
         composable("habits") {
-            HabitsScreen(onBack = { navController.popBackStack() })
+            HabitsScreen(onBack = { navController.popBackStack() }, onOpenStats = { navController.navigate("habit_stats") })
+        }
+        composable("habit_stats") {
+            HabitStatsScreen(onBack = { navController.popBackStack() })
         }
         composable("realestate") {
             RealEstateScreen(onBack = { navController.popBackStack() })
