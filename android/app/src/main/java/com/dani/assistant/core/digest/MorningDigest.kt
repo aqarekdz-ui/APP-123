@@ -65,7 +65,10 @@ object MorningDigest {
         val today = pending.filter { it.dueDate != null && it.dueDate in start..end }.sortedBy { it.dueDate }
         val overdue = pending.count { it.dueDate != null && it.dueDate < start }
         val evs = try { com.dani.assistant.core.events.EventStore.upcoming(ctx, 1) } catch (e: Exception) { emptyList() }
-        if (today.isEmpty() && overdue == 0 && evs.isEmpty()) return // ما نزعجوكش بإشعار فارغ
+        // العادات: تدخل في الإشعار فقط إذا كاين إشعار أصلاً، أو سلسلة (>= 3) تتحمى اليوم
+        val habitM = try { com.dani.assistant.core.habits.HabitDigest.morning(com.dani.assistant.core.habits.HabitStore.list(ctx), java.time.LocalDate.now()) } catch (e: Exception) { null }
+        val habitRisk = habitM != null && habitM.risk.isNotEmpty()
+        if (today.isEmpty() && overdue == 0 && evs.isEmpty() && !habitRisk) return // ما نزعجوكش بإشعار فارغ
 
         val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
         val lines = ArrayList<String>()
@@ -73,6 +76,7 @@ object MorningDigest {
         today.take(6).forEach { lines.add("• " + fmt.format(Date(it.dueDate!!)) + "  " + it.title) }
         if (today.size > 6) lines.add("… و" + (today.size - 6) + " أخرى")
         if (overdue > 0) lines.add("⚠️ " + overdue + " مهمة متأخرة")
+        habitM?.line?.let { lines.add(it) }
         try {
             val pins = com.dani.assistant.core.notes.NoteStore.list(ctx).filter { it.pinned }
             pins.take(2).forEach { lines.add("📌 " + it.text.replace("\n", " ").take(60)) }

@@ -95,6 +95,7 @@ object WeeklyReview {
                 val r = com.dani.assistant.core.habits.HabitStats.rate(h.days, java.time.LocalDate.now().minusDays(6), java.time.LocalDate.now(), 7, h.weekdays)
                 sb.append("\n  ").append(h.emoji).append(" ").append(h.name).append(": ").append(r.done).append("/").append(r.window)
             }
+            try { com.dani.assistant.core.habits.HabitDigest.weekly(habits, java.time.LocalDate.now())?.let { sb.append("\n").append(it) } } catch (e: Exception) { }
         }
         try {
             val ups = com.dani.assistant.core.events.EventStore.upcoming(ctx, 7)
