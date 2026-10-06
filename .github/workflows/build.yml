@@ -12,8 +12,25 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.11.1
-      - run: gradle testDebugUnitTest --stacktrace
+      - name: Unit tests
+        shell: bash
+        run: gradle testDebugUnitTest --stacktrace 2>&1 | tee /tmp/test.log; exit ${PIPESTATUS[0]}
         working-directory: android
+      - name: Report test errors as annotations
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re, glob
+          t = open('/tmp/test.log', encoding='utf-8', errors='replace').read().splitlines()
+          keys = ('e: file:///', 'FAILED', 'What went wrong', 'Caused by', 'Exception', 'Error:', 'AssertionError', 'expected')
+          out = []
+          for l in t:
+              if any(k in l for k in keys) and l not in out:
+                  out.append(l.strip()[:240])
+          msg = '%0A'.join(out[:25]).replace('\r', '')
+          print('::error title=Gradle test failure::' + msg)
+          PY
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
