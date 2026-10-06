@@ -54,7 +54,7 @@ class MedReportsTest {
     @Test fun outOfRangeAndBadKeysIgnored() {
         val m = Med(1, "A", "", listOf(480), true, 0L, ms(today.minusDays(30)))
         val taken = setOf("2026-09-01|1|480", "garbage", "x|y|z", "2026-10-06|1|480")
-        val r = rows(MedReports.csv(listOf(m), taken, today, 2, zone))
+        val r = rows(MedReports.csv(listOf(m), taken, today, 1000, 2, zone))
         assertEquals(3, r.size)
         assertTrue(r.none { it.startsWith("2026-09-01") })
     }
