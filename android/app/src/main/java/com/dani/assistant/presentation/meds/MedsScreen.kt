@@ -57,7 +57,16 @@ fun MedsScreen(onBack: () -> Unit) {
             Text("💊 الأدوية", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             TextButton(onClick = onBack) { Text("رجوع") }
         }
-        Button(onClick = { edit = Med(id = 0, name = "") }) { Text("➕ دواء جديد") }
+        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { edit = Med(id = 0, name = "") }) { Text("➕ دواء جديد") }
+            androidx.compose.material3.OutlinedButton(onClick = {
+                val today = java.time.LocalDate.now()
+                com.dani.assistant.core.export.CsvShare.share(
+                    context, "dani_meds_" + today.toString() + ".csv",
+                    com.dani.assistant.core.meds.MedReports.csv(MedStore.list(context), MedStore.takenKeys(context), today, MedStore.nowMinute())
+                )
+            }) { Text("📤 CSV") }
+        }
         if (exp > 0) Text("الالتزام آخر 7 أيام: " + got + " / " + exp + " (" + (got * 100 / exp) + "%)", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
 
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {

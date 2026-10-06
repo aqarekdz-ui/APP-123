@@ -94,6 +94,12 @@ fun FocusScreen(onBack: () -> Unit) {
                 Text(if (st.phase == "focus") "⏹ وقف (الجلسة ما تتحسبش)" else "⏭ تخطى الراحة")
             }
         }
+        OutlinedButton(onClick = {
+            com.dani.assistant.core.export.CsvShare.share(
+                context, "dani_focus_" + java.time.LocalDate.now().toString() + ".csv",
+                com.dani.assistant.core.focus.FocusReports.csv(FocusLog.list(context))
+            )
+        }) { Text("📤 CSV (الجلسات)") }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("اليوم: " + stats.first + " جلسات • " + (stats.second / 60) + "س " + (stats.second % 60) + "د", fontSize = 14.sp)

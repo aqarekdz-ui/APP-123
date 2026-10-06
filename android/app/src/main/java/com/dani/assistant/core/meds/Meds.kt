@@ -108,6 +108,9 @@ object MedStore {
         return s
     }
 
+    /** مفاتيح السجل "yyyy-MM-dd|medId|minute" (للتصدير). */
+    fun takenKeys(ctx: Context): Set<String> = takenSet(ctx)
+
     fun isTaken(ctx: Context, medId: Long, minute: Int, day: String = dayKey(0)): Boolean =
         takenSet(ctx).contains(logKey(day, medId, minute))
 
