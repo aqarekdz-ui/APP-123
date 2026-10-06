@@ -109,6 +109,15 @@ fun SettingsScreen(onBack: () -> Unit) {
         ) { localFirst = it; AppSettings.setLocalFirst(context, it) }
 
         // ---- الملخص الصباحي ----
+        val releaseSigned = remember { com.dani.assistant.core.backup.SigningCheck.isReleaseSigned(context) }
+        Text("🔏 توقيع التطبيق", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        if (releaseSigned) {
+            Text("✅ نسخة موقّعة بمفتاح ثابت: التحديثات الجاية تتثبّت فوقها بلا حذف وبلا ضياع بيانات.", fontSize = 13.sp)
+        } else {
+            Text("⚠️ نسخة debug: مفتاحها يتبدّل، وتثبيت نسخة بمفتاح آخر يفرض حذف التطبيق (والبيانات تضيع). للانتقال لنسخة release (dani-apk-release) بأمان:", fontSize = 13.sp)
+            Text("1) الذاكرة ← تصدير نسخة احتياطية مع كلمة سر (باش الأسرار تتحفظ).\n2) تأكد أن الملف في Documents ولا انقلو لمكان خارج التطبيق.\n3) احذف التطبيق وثبّت dani-apk-release.\n4) الذاكرة ← استيراد الملف، وأعد مفاتيح Groq/OpenRouter من الإعدادات.\nمن بعد، كل التحديثات تتثبّت فوقها عادي.", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+        }
+
         AlarmReliabilityCard()
 
         Text("التنبيهات", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
