@@ -76,6 +76,7 @@ fun MemoryScreen() {
                         val json = BackupManager.export(context, pendingExport)
                         context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
                     }
+                    com.dani.assistant.core.backup.BackupReminder.markDone(context)
                     backupMsg = "تم حفظ النسخة الاحتياطية ✅"
                 } catch (e: Exception) {
                     backupMsg = "فشل التصدير: " + (e.message ?: "")

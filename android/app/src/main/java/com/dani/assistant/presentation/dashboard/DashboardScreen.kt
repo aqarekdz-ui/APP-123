@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -63,6 +64,26 @@ fun DashboardScreen(viewModel: TasksViewModel, onOpenSettings: () -> Unit = {}, 
             Row {
                 TextButton(onClick = onOpenSearch) { Text("🔎 بحث") }
                 TextButton(onClick = onOpenSettings) { Text("⚙ الإعدادات") }
+            }
+        }
+        var remindBackup by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(com.dani.assistant.core.backup.BackupReminder.shouldRemindNow(dashCtx)) }
+        var backupNote by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+        val backupScope = androidx.compose.runtime.rememberCoroutineScope()
+        if (remindBackup) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val d = com.dani.assistant.core.backup.BackupReminder.daysSince(com.dani.assistant.core.backup.BackupReminder.last(dashCtx), System.currentTimeMillis())
+                    Text("💾 " + (if (d == null) "ما درتش نسخة احتياطية بعد" else "آخر نسخة احتياطية قبل " + d + " يوم"), fontWeight = FontWeight.Bold)
+                    Text("النسخة التلقائية داخل التطبيق تتمسح مع حذفو. للأمان الكامل صدّر ملف من الذاكرة (يتحفظ في Documents).", fontSize = 12.sp)
+                    if (backupNote.isNotEmpty()) Text(backupNote, fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = {
+                            backupNote = "..."
+                            backupScope.launch { backupNote = com.dani.assistant.core.backup.AutoBackup.runNow(dashCtx); remindBackup = false }
+                        }) { Text("نسخ دابا") }
+                        TextButton(onClick = { com.dani.assistant.core.backup.BackupReminder.snooze(dashCtx); remindBackup = false }) { Text("بعدين (3 أيام)") }
+                    }
+                }
             }
         }
         Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

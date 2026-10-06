@@ -90,6 +90,7 @@ object AutoBackup {
             val info = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date()) + " — " + parts.joinToString(" + ") +
                 " (" + (bytes.size / 1024) + " KB، " + (if (pass.isEmpty()) "بدون أسرار" else "مع الأسرار") + ")"
             p(ctx).edit().putString("last_info", info).apply()
+            BackupReminder.markDone(ctx)
             "✅ " + info
         } catch (e: CancellationException) {
             throw e
