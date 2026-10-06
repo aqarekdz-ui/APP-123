@@ -539,6 +539,7 @@ object LifeCommands {
             val p = com.dani.assistant.core.money.MoneyReports.pace(MoneyStore.entries(ctx), System.currentTimeMillis(), upc)
             if (p.spent > 0) {
                 sb.append("\n\n📈 توقع نهاية الشهر: ~").append(MoneyStore.fmt(p.projected)).append(if (p.fixed > 0 || p.upcomingFixed > 0) " (الثابتة ما تتضاعفش" + (if (p.upcomingFixed > 0) "، وجايين " + MoneyStore.fmt(p.upcomingFixed) else "") + ")" else "")
+                com.dani.assistant.core.money.MoneyReports.budgetVerdict(p.projected, MoneyStore.budgets(ctx).values.sum())?.let { sb.append("\n").append(it) }
                 if (p.pct != null) sb.append("\nمقارنة بنفس الفترة من الشهر الفايت (").append(MoneyStore.fmt(p.prevSamePeriod)).append("): ").append(if (p.pct >= 0) "+" else "").append(p.pct).append("%")
             }
         }

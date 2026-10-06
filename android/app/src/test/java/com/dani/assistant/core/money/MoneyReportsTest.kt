@@ -121,6 +121,14 @@ class MoneyPaceTest {
         assertEquals(5000L, p.upcomingFixed)
     }
 
+    @Test fun budgetVerdictLevels() {
+        assertEquals(null, MoneyReports.budgetVerdict(5000, 0))
+        assertTrue(MoneyReports.budgetVerdict(12000, 10000)!!.startsWith("⚠️"))
+        assertTrue(MoneyReports.budgetVerdict(12000, 10000)!!.contains("2000"))
+        assertTrue(MoneyReports.budgetVerdict(9500, 10000)!!.startsWith("🟡"))
+        assertTrue(MoneyReports.budgetVerdict(5000, 10000)!!.startsWith("🟢"))
+    }
+
     @Test fun emptyMonth() {
         val p = MoneyReports.pace(emptyList(), ms(2026, 10, 4))
         assertEquals(0L, p.spent); assertEquals(0L, p.projected)

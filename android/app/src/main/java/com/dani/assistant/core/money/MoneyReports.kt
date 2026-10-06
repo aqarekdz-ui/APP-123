@@ -76,6 +76,17 @@ object MoneyReports {
         return Pace(spent, prev, projected, pct, fixed, upcomingFixed)
     }
 
+    /** تقييم التوقع مقابل مجموع الميزانيات. null إذا ما كاينش ميزانيات. */
+    fun budgetVerdict(projected: Long, totalBudget: Long): String? {
+        if (totalBudget <= 0) return null
+        val pct = Math.round(projected * 100.0 / totalBudget).toInt()
+        return when {
+            projected > totalBudget -> "⚠️ التوقع يتجاوز مجموع ميزانياتك بـ " + (projected - totalBudget) + " دج (" + pct + "%)."
+            pct >= 90 -> "🟡 قريب من مجموع ميزانياتك (" + pct + "%)."
+            else -> "🟢 في حدود ميزانياتك (" + pct + "%)."
+        }
+    }
+
     /** آخر [count] أشهر (الأقدم أولاً) تنتهي بشهر [nowMs]. */
     fun monthTotals(entries: List<MoneyEntry>, count: Int, nowMs: Long): List<MonthTotal> {
         val out = ArrayList<MonthTotal>()
