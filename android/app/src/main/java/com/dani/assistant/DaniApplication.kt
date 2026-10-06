@@ -44,6 +44,9 @@ class DaniApplication : Application() {
         // مراجعة أسبوعية (أحد 19:00)
         try { com.dani.assistant.core.digest.WeeklyReview.schedule(this) } catch (e: Exception) { }
 
+        // تقرير الشهر الفايت (يوم 1)
+        try { com.dani.assistant.core.digest.MonthlyReport.schedule(this) } catch (e: Exception) { }
+
         // مصاريف ثابتة شهرية (تسجيل تلقائي)
         try { com.dani.assistant.core.money.RecurringExpenses.schedule(this) } catch (e: Exception) { }
         Thread {

@@ -22,6 +22,10 @@ object AppSettings {
     fun weeklyReviewEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("weekly_review", true)
     fun setWeeklyReviewEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("weekly_review", v).apply()
 
+    /** تقرير الشهر الفايت (يوم 1 على 09:30). */
+    fun monthlyReportEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("monthly_report", true)
+    fun setMonthlyReportEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("monthly_report", v).apply()
+
     /** وقت الملخص بالدقائق من منتصف الليل (الافتراضي 08:00). */
     fun digestMinutes(ctx: Context): Int = prefs(ctx).getInt("digest_min", 8 * 60)
     fun setDigestMinutes(ctx: Context, m: Int) = prefs(ctx).edit().putInt("digest_min", m).apply()

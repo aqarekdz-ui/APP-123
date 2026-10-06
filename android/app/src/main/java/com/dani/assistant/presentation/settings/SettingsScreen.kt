@@ -54,6 +54,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var digestOn by remember { mutableStateOf(AppSettings.digestEnabled(context)) }
     var digestMin by remember { mutableStateOf(AppSettings.digestMinutes(context)) }
     var weeklyOn by remember { mutableStateOf(AppSettings.weeklyReviewEnabled(context)) }
+    var monthlyOn by remember { mutableStateOf(AppSettings.monthlyReportEnabled(context)) }
     var groqKey by remember { mutableStateOf(ProviderSettings.groqKey(context)) }
     var orKey by remember { mutableStateOf(ProviderSettings.openRouterKey(context)) }
     var knowledgeCount by remember { mutableStateOf(KnowledgeBase.getAll(context).size) }
@@ -141,6 +142,16 @@ fun SettingsScreen(onBack: () -> Unit) {
             weeklyOn = it
             AppSettings.setWeeklyReviewEnabled(context, it)
             com.dani.assistant.core.digest.WeeklyReview.schedule(context)
+        }
+
+        SettingSwitch(
+            title = "تقرير شهري",
+            desc = "يوم 1 على 09:30 إشعار بملخص الشهر الفايت (المصروف، الدخل، الفئات، المقارنة، المهام). تقدر تطلبو من الشات: \"تقرير الشهر\".",
+            checked = monthlyOn
+        ) {
+            monthlyOn = it
+            AppSettings.setMonthlyReportEnabled(context, it)
+            com.dani.assistant.core.digest.MonthlyReport.schedule(context)
         }
 
         // ---- الصوت الجزائري ----

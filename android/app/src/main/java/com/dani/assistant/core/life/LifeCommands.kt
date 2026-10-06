@@ -221,6 +221,11 @@ object LifeCommands {
             return DayPlanner.plan(if (has(n, "غدوه", "غدا")) 1 else 0)
         }
 
+        // 1c2) تقرير الشهر الفايت
+        if (has(n, "تقرير الشهر", "ملخص الشهر", "تقرير شهري") && amt == null) {
+            return com.dani.assistant.core.digest.MonthlyReport.build(ctx)
+        }
+
         // 1d) مراجعة الأسبوع
         if (has(n, "مراجعه الاسبوع", "مراجعه اسبوعيه", "ملخص الاسبوع", "مراجعه اسبوعي") && amt == null) {
             return com.dani.assistant.core.digest.WeeklyReview.full(ctx)
