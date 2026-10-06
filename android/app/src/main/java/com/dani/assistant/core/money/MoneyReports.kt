@@ -7,7 +7,7 @@ import java.util.Locale
 
 data class MonthTotal(val year: Int, val month: Int, val income: Long, val expense: Long)
 
-data class Pace(val spent: Long, val prevSamePeriod: Long, val projected: Long, val pct: Int?)
+data class Pace(val spent: Long, val prevSamePeriod: Long, val projected: Long, val pct: Int?, val fixed: Long = 0)
 
 /** تقارير المال (منطق صافي، يتجرّب بـ JUnit): CSV + مجاميع للرسوم. */
 object MoneyReports {
@@ -69,9 +69,11 @@ object MoneyReports {
         val ex = entries.filter { it.type == "expense" }
         val spent = ex.filter { it.date in mStart until tomorrow }.sumOf { it.amount }
         val prev = ex.filter { it.date in prevStart until prevEnd }.sumOf { it.amount }
-        val projected = spent * dim / day
+        // المصاريف الثابتة (note يبدأ بـ 🔁) ما تتضاعفش: تتحسب كما هي، والباقي يتوزع على أيام الشهر
+        val fixed = ex.filter { it.date in mStart until tomorrow && it.note.startsWith("🔁") }.sumOf { it.amount }
+        val projected = fixed + (spent - fixed) * dim / day
         val pct = if (prev > 0) Math.round((spent - prev) * 100.0 / prev).toInt() else null
-        return Pace(spent, prev, projected, pct)
+        return Pace(spent, prev, projected, pct, fixed)
     }
 
     /** آخر [count] أشهر (الأقدم أولاً) تنتهي بشهر [nowMs]. */

@@ -103,6 +103,18 @@ class MoneyPaceTest {
         assertEquals(100L, p.projected)
     }
 
+    @Test fun fixedExpensesAreNotMultiplied() {
+        val now = ms(2026, 10, 10)
+        val list = listOf(
+            MoneyEntry(id = 1, type = "expense", amount = 30000, note = "🔁 كراء", date = ms(2026, 10, 5)),
+            ex(1000, ms(2026, 10, 3))
+        )
+        val p = MoneyReports.pace(list, now)
+        assertEquals(31000L, p.spent)
+        assertEquals(30000L, p.fixed)
+        assertEquals(30000L + 1000L * 31 / 10, p.projected) // 33100
+    }
+
     @Test fun emptyMonth() {
         val p = MoneyReports.pace(emptyList(), ms(2026, 10, 4))
         assertEquals(0L, p.spent); assertEquals(0L, p.projected)
